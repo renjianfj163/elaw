@@ -202,6 +202,26 @@ class BasisCheckItem(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime)
 
 
+class EiaReport(Base):
+    """已核查的环评报告。同一份文件、同一个基准日只保留一条。"""
+
+    __tablename__ = "eia_report"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    filename: Mapped[str] = mapped_column(String(500))
+    file_sha256: Mapped[str] = mapped_column(String(64))
+    as_of: Mapped[date] = mapped_column(Date)
+    result_hash: Mapped[str] = mapped_column(String(64))
+    basis_in_force: Mapped[int] = mapped_column(Integer)
+    rejected: Mapped[int] = mapped_column(Integer)
+    total: Mapped[int] = mapped_column(Integer)
+    shown: Mapped[int] = mapped_column(Integer)
+    stats: Mapped[dict] = mapped_column(JSON)
+    counts: Mapped[dict] = mapped_column(JSON)
+    findings: Mapped[list] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+
+
 class ReviewLog(Base):
     __tablename__ = "review_log"
 

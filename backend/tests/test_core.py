@@ -301,5 +301,9 @@ def test_upload_and_scope_api():
     )
     assert response.status_code == 200
     assert response.json()["status"] == "待确认"
+    listed = client.get("/api/reports")
+    match = next(item for item in listed.json()["items"] if item["seed_name"] == "示例文本")
+    assert match["version_status"] == "待确认"
+    assert match["verified_by"] is None
     health = client.get("/api/health")
     assert "不构成法律意见" in health.json()["disclaimer"]

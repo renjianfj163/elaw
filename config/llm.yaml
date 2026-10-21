@@ -10,3 +10,4 @@ llm:
   retries: 2
   cache: true
   prompt_version: "2026-10-21"
+  outbound_allowed: true

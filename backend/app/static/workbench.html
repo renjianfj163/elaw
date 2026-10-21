@@ -3,198 +3,1200 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>医院环评合规预审</title>
+  <title>环评合规预审</title>
   <style>
     :root {
-      --paper: #f3efe4;
-      --ink: #1d2822;
-      --green: #1e5c45;
-      --line: #d5ccb8;
-      --card: #fffaf2;
-      --warn: #8a3b2c;
+      --ok: #1f7a4d;
+      --bad: #b3372b;
+      --unk: #a8741a;
+      --out: #6b7280;
+      --stale: #7c4a9e;
+      --bg: #fbf7ec;
+      --card: #fffdf6;
+      --ink: #1d2a24;
+      --line: #e5dfcc;
+      --muted: #3e4a43;
+      --soft: #f3ecda;
+      --primary: #1f7a4d;
+      --primary-ink: #fffdf6;
+      --mark: #f3e2a4;
+      --ok-bg: #e7f3ec;
+      --bad-bg: #f8e8e5;
+      --unk-bg: #f8edd4;
+      --out-bg: #eeeae2;
+      --stale-bg: #f3eaf8;
+      color-scheme: light;
+    }
+    html[data-theme="dark"] {
+      --ok: #8dccab;
+      --bad: #f0a097;
+      --unk: #e4c07a;
+      --out: #c8c4bb;
+      --stale: #d7b6ee;
+      --bg: #141a17;
+      --card: #1e2722;
+      --ink: #f6f1e4;
+      --line: #3d4a43;
+      --muted: #d2cbbd;
+      --soft: #28322c;
+      --primary: #2f9e68;
+      --primary-ink: #f6f1e4;
+      --mark: #5c4a1e;
+      --ok-bg: #1a3328;
+      --bad-bg: #3a2422;
+      --unk-bg: #3a301c;
+      --out-bg: #2a312d;
+      --stale-bg: #2e2436;
+      color-scheme: dark;
     }
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
     body {
       margin: 0;
-      background: var(--paper);
+      background: var(--bg);
       color: var(--ink);
-      font: 16px/1.6 "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      font-variant-numeric: tabular-nums;
     }
-    header, main { width: min(980px, calc(100% - 32px)); margin: 0 auto; }
-    header { padding: 28px 0 8px; }
-    .banner {
-      background: var(--warn);
-      color: #fff8f4;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 14px;
-    }
-    h1 { font-weight: 600; font-size: 32px; margin: 18px 0 6px; letter-spacing: 0.02em; }
-    h2 { font-size: 20px; margin: 0 0 10px; color: var(--green); }
-    p.lead { margin-top: 0; color: #3d4a43; }
-    section {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 18px;
-      margin: 16px 0;
-    }
-    label { display: block; font-size: 14px; margin: 10px 0 4px; }
-    input, select, button, textarea {
-      font: inherit;
-      color: inherit;
-    }
-    input, select, textarea {
-      width: 100%;
-      padding: 8px 10px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: #fff;
-    }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    button, input, select, textarea { font: inherit; color: inherit; }
     button {
-      background: var(--green);
-      color: white;
-      border: 0;
+      background: transparent;
+      border: 1px solid var(--line);
       border-radius: 8px;
       padding: 8px 14px;
       cursor: pointer;
     }
-    button.ghost { background: transparent; color: var(--green); border: 1px solid var(--green); }
-    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    button.primary { background: var(--primary); color: var(--primary-ink); border-color: transparent; }
+    button.primary:disabled { background: var(--line); color: var(--muted); opacity: 1; }
+    button.danger { color: var(--bad); border-color: transparent; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button { white-space: nowrap; }
+    button.text { border-color: transparent; padding-inline: 4px; }
+    :focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; }
+    .top, main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
+    body[data-page="result"] .top,
+    body[data-page="result"] main { width: min(1280px, calc(100% - 32px)); }
+    .top { display: flex; align-items: center; gap: 16px; padding: 14px 0 10px; }
+    .brand { font-weight: 600; letter-spacing: 0.03em; }
+    nav { display: flex; gap: 4px; }
+    nav button { border: 0; color: var(--muted); border-radius: 999px; }
+    nav button.on { background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+    .top-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+    .disclaimer {
+      margin: 0 0 8px;
+      padding: 6px 16px;
+      background: var(--soft);
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+      text-align: center;
+      border-block: 1px solid var(--line);
+    }
+    h2 { font-size: 18px; font-weight: 600; margin: 22px 0 8px; }
+    .hint { color: var(--muted); font-size: 14px; margin: 4px 0; }
+    .bar .hint { margin: 0; }
+    .bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 14px;
+      margin: 8px 0 14px;
+    }
+    .bar .grow { margin-left: auto; display: flex; gap: 8px; }
+    label.inline { display: inline-flex; align-items: center; gap: 8px; }
+    input[type="date"], input[type="text"], input[type="password"], input:not([type]), select, textarea {
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--card);
+    }
+    input[type="date"] { width: auto; }
+    .drop {
+      border: 1.5px dashed var(--line);
+      border-radius: 12px;
+      background: var(--soft);
+      text-align: center;
+      padding: 28px 16px;
+      cursor: pointer;
+    }
+    .drop strong { font-weight: 600; }
+    .drop.over { border-color: var(--ok); background: var(--ok-bg); }
+    .file {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) auto minmax(180px, 1.5fr) auto;
+      gap: 8px 16px;
+      align-items: center;
+      padding: 10px 2px;
+      border-bottom: 1px solid var(--line);
+    }
+    .file .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .track { color: var(--muted); white-space: nowrap; }
+    .track .now { color: var(--ink); font-weight: 600; }
+    .track .done { color: var(--ok); }
+    .actions { display: flex; align-items: center; gap: 12px; margin: 14px 0; }
+    #checkBlock { margin-right: auto; }
+    .history {
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) auto minmax(0, 1fr);
+      gap: 8px 16px;
+      text-align: left;
+      background: var(--card);
+      margin: 8px 0;
+      border-radius: 10px;
+    }
+    .history .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    table { width: 100%; border-collapse: collapse; }
     th, td { border-bottom: 1px solid var(--line); text-align: left; padding: 8px 6px; vertical-align: top; }
-    .muted { color: #5c675f; font-size: 13px; }
-    .warn { color: var(--warn); }
-    @media (max-width: 720px) { .row { grid-template-columns: 1fr; } }
+    th { color: var(--muted); font-weight: 600; font-size: 14px; }
+    .table-wrap { overflow-x: auto; }
+    tr.detail td { background: var(--soft); color: var(--muted); }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border-radius: 999px;
+      padding: 1px 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: nowrap;
+      font-weight: 600;
+    }
+    .badge.ok { color: var(--ok); background: var(--ok-bg); }
+    .badge.bad { color: var(--bad); background: var(--bad-bg); }
+    .badge.unk { color: var(--unk); background: var(--unk-bg); }
+    .badge.out { color: var(--out); background: var(--out-bg); }
+    .badge.stale { color: var(--stale); background: var(--stale-bg); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+    .span-2 { grid-column: 1 / -1; }
+    .field label { display: block; margin-bottom: 4px; }
+    .field input, .field select { width: 100%; }
+    .confirm-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 12px 14px;
+      border: 1px solid var(--unk);
+      background: var(--unk-bg);
+      border-radius: 10px;
+    }
+    .confirm-row input { width: auto; margin-top: 4px; }
+    .result-head {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      background: var(--bg);
+      padding: 8px 0 10px;
+    }
+    .meta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 6px 0; }
+    .meta code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; color: var(--ink); }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+    .chip { border-radius: 999px; background: var(--card); }
+    .chip.on { box-shadow: inset 0 0 0 1.5px var(--ink); }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 8px 0 12px; }
+    .pane {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      min-height: 140px;
+      max-height: 260px;
+      overflow: auto;
+    }
+    .pane h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; color: var(--muted); }
+    .pane .path { margin: 0 0 6px; }
+    mark { background: var(--mark); color: inherit; border-radius: 3px; padding: 0 2px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin: 8px 0;
+      cursor: pointer;
+    }
+    .card.on { box-shadow: inset 3px 0 0 var(--primary); }
+    .card-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+    blockquote {
+      margin: 8px 0;
+      padding: 2px 0 2px 12px;
+      border-left: 3px solid var(--muted);
+    }
+    .ops { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+    .review-form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .review-form input, .review-form select { width: auto; min-width: 140px; }
+    .tag {
+      display: inline-block;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 10px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    dialog {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--card);
+      color: inherit;
+      width: min(720px, calc(100% - 32px));
+      padding: 18px;
+    }
+    dialog::backdrop { background: rgba(20, 26, 23, 0.45); }
+    dialog .grid-2 input, dialog .grid-2 select { width: 100%; }
+    @media (max-width: 800px) {
+      .file, .history, .split, .grid-2 { grid-template-columns: 1fr; }
+      .top { flex-wrap: wrap; }
+      .top-actions { margin-left: 0; }
+    }
   </style>
 </head>
-<body>
-  <header>
-    <div class="banner">辅助预审，不构成法律意见。结论默认是「无法判定」，不是「符合」。</div>
-    <h1>医院环评合规预审</h1>
-    <p class="lead">单机使用。法规文本留在这台电脑上。自动检索到的日期和状态码都要你对照官网确认，确认前不参与评估。</p>
+<body data-page="check">
+  <header class="top">
+    <div class="brand">环评合规预审</div>
+    <nav>
+      <button type="button" data-page="check" class="on">核查</button>
+      <button type="button" data-page="basis">依据库</button>
+    </nav>
+    <div class="top-actions">
+      <button type="button" id="themeBtn" class="text">深色</button>
+      <button type="button" id="openLlm">⚙ 模型设置</button>
+    </div>
   </header>
+  <p class="disclaimer">辅助预审，不构成法律意见。</p>
   <main>
-    <section>
-      <h2>核对种子清单</h2>
-      <p class="muted">会访问国家法律法规数据库、生态环境部公开检索页、国家标准公开检索页。国标正文不会自动下载。这一步不调用大模型。</p>
-      <button id="collect">开始核验</button>
-      <button class="ghost" id="reload">刷新报告</button>
-      <p id="collectStatus" class="muted"></p>
-      <div id="reports"></div>
+    <section id="page-check">
+      <div class="bar">
+        <button type="button" id="basisLink" class="text"></button>
+        <span aria-hidden="true">·</span>
+        <label class="inline" for="asOf">基准日 <input id="asOf" type="date" value="2026-10-21" required /></label>
+        <span class="hint">按此日期的现行法衡量</span>
+      </div>
+      <div id="drop" class="drop" tabindex="0" role="button">
+        <strong>拖拽 .doc / .docx 到这里，或点击选择</strong>
+        <p class="hint">一次最多 30 份，单份不超过 40 MB。每份单独核查。</p>
+      </div>
+      <input id="reportFile" type="file" accept=".doc,.docx" multiple hidden />
+      <div id="fileList"></div>
+      <div class="actions">
+        <span id="checkBlock" class="hint"></span>
+        <button id="checkBtn" class="primary" type="button" disabled>开始核查</button>
+      </div>
+      <p id="checkStatus" class="hint" aria-live="polite"></p>
+      <h2>已核查的报告</h2>
+      <div id="checkedList"><p class="hint">上传一份报告，核查完成后会列在这里。</p></div>
     </section>
-    <section>
-      <h2>人工上传法规或标准</h2>
-      <form id="upload">
-        <div class="row">
-          <div><label>名称</label><input name="name" required placeholder="与官网标题一致" /></div>
+
+    <section id="page-basis" hidden>
+      <div class="bar">
+        <strong id="basisSummary">依据库</strong>
+        <div class="grow">
+          <button id="collect" type="button">开始核验</button>
+          <button id="reload" type="button">刷新报告</button>
+        </div>
+      </div>
+      <p class="hint">会访问国家法律法规数据库、生态环境部公开检索页、国家标准公开检索页。国标正文不会自动下载。这一步不调用大模型。原始状态码要对照官网后再确认。</p>
+      <p id="collectStatus" class="hint" aria-live="polite"></p>
+      <div id="reports" class="table-wrap"></div>
+      <h2>上传法律或法规</h2>
+      <p class="hint">这里上传的是法规或标准，不是待核查的环评报告。</p>
+      <form id="upload" class="grid-2">
+        <div class="field"><label for="upName">名称</label><input id="upName" name="name" required placeholder="与官网标题一致" /></div>
+        <div class="field">
+          <label for="upLevel">层级</label>
+          <select id="upLevel" name="level">
+            <option>法律</option><option>行政法规</option><option>部门规章</option>
+            <option>名录</option><option>国家标准</option><option>行业标准</option>
+            <option>规范性文件</option><option>司法解释</option>
+          </select>
+        </div>
+        <div class="field"><label for="upPub">公布日期</label><input id="upPub" name="publish_date" type="date" /></div>
+        <div class="field"><label for="upEff">施行日期</label><input id="upEff" name="effective_date" type="date" /></div>
+        <div class="field"><label for="upFile">文件（PDF / DOCX / TXT）</label><input id="upFile" name="file" type="file" required accept=".pdf,.docx,.txt,.md" /></div>
+        <div class="field"><label for="uploadBy">审核人</label><input id="uploadBy" name="by" placeholder="对照官网的人" /></div>
+        <label class="confirm-row span-2">
+          <input id="confirmBox" name="confirm" type="checkbox" value="true" />
           <div>
-            <label>层级</label>
-            <select name="level">
-              <option>法律</option><option>行政法规</option><option>部门规章</option>
-              <option>名录</option><option>国家标准</option><option>行业标准</option>
-              <option>规范性文件</option><option>司法解释</option>
-            </select>
+            <strong>我已对照官网核对，可以记为已核验</strong>
+            <p class="hint">勾选并填写审核人之后才能上传。未勾选的文本不会参与评估。</p>
           </div>
-        </div>
-        <div class="row">
-          <div><label>公布日期</label><input name="publish_date" type="date" /></div>
-          <div><label>施行日期</label><input name="effective_date" type="date" /></div>
-        </div>
-        <label>文件（PDF / DOCX / TXT）</label>
-        <input name="file" type="file" required accept=".pdf,.docx,.txt,.md" />
-        <label>审核人</label>
-        <input name="by" placeholder="对照官网的人" />
-        <label><input type="checkbox" name="confirm" value="true" style="width:auto" /> 我已对照官网核对，可以记为已核验</label>
-        <p><button type="submit">上传</button></p>
-        <p id="uploadStatus" class="muted"></p>
+        </label>
+        <p class="span-2">
+          <button id="uploadBtn" class="primary" type="submit" disabled>上传</button>
+        </p>
+        <p id="uploadStatus" class="hint span-2" aria-live="polite"></p>
       </form>
     </section>
-    <section>
-      <h2>范围</h2>
-      <p class="muted">消防、用地、执业许可、地方标准等会返回范围外，系统不会硬答。</p>
-      <div class="row">
-        <input id="topic" placeholder="例如：消防" />
-        <button id="scopeBtn" type="button">查看</button>
+
+    <section id="page-result" hidden>
+      <div class="result-head">
+        <button type="button" id="backCheck" class="text">← 返回核查</button>
+        <h2 id="resultTitle" style="margin-top:4px"></h2>
+        <div id="resultMeta" class="meta"></div>
+        <p id="resultExtra" class="hint"></p>
+        <div id="chips" class="chips"></div>
       </div>
-      <p id="scopeOut"></p>
+      <div class="split">
+        <div id="paneReport" class="pane"></div>
+        <div id="paneBasis" class="pane"></div>
+      </div>
+      <p class="hint">j / k 切换条目。确认和改判记入复核记录，不改原来的 result_hash。</p>
+      <div id="cards"></div>
     </section>
   </main>
+
+  <dialog id="confirmDialog">
+    <h2>对照后确认</h2>
+    <p id="confirmName" class="hint"></p>
+    <form id="confirmForm">
+      <div class="field"><label for="confirmBy">审核人</label><input id="confirmBy" required placeholder="填写你的姓名" /></div>
+      <div class="field">
+        <label for="confirmState">对照官网后的状态</label>
+        <select id="confirmState">
+          <option>有效</option>
+          <option>已修订</option>
+          <option>已废止</option>
+          <option>未生效</option>
+        </select>
+      </div>
+      <p>
+        <button class="primary" type="submit">记下核对</button>
+        <button id="confirmClose" type="button">取消</button>
+      </p>
+      <p id="confirmMessage" class="hint"></p>
+    </form>
+  </dialog>
+
+  <dialog id="llmDialog">
+    <h2>模型设置</h2>
+    <p id="llmSummary" class="tag">deepseek-v4-flash · 思考 high</p>
+    <form id="llmForm">
+      <div class="grid-2">
+        <div class="field"><label for="llmModel">模型</label><input id="llmModel" value="deepseek-v4-flash" /></div>
+        <div class="field"><label for="llmBase">接口地址</label><input id="llmBase" value="https://api.deepseek.com" /></div>
+        <div class="field">
+          <label for="llmThinking">思考模式</label>
+          <select id="llmThinking">
+            <option value="enabled" selected>enabled</option>
+            <option value="disabled">disabled</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="llmEffort">思考强度</label>
+          <select id="llmEffort">
+            <option value="high" selected>high</option>
+            <option value="medium">medium</option>
+            <option value="low">low</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label for="llmKey">API 密钥</label><input id="llmKey" type="password" autocomplete="off" placeholder="留空则沿用已有密钥" /></div>
+      <p>
+        <button class="primary" type="submit">保存设置</button>
+        <button id="llmPing" type="button">测试连通</button>
+        <button id="llmClose" type="button">关闭</button>
+      </p>
+      <p id="llmStatus" class="hint"></p>
+    </form>
+  </dialog>
+
   <script>
-    const status = document.querySelector("#collectStatus");
-    async function loadReports() {
-      const data = await (await fetch("/api/reports")).json();
+    const KIND = {
+      timeliness: "引用时效",
+      quote_numeric: "数值引用",
+      constraint_limit: "约束与限值",
+      prediction_constraint: "预测值与自设约束",
+      numeric: "数值",
+      presence: "是否写到",
+      qualitative: "定性"
+    };
+    const VERDICT_STYLE = {
+      "符合": "ok",
+      "有效": "ok",
+      "不符合": "bad",
+      "无法判定": "unk",
+      "超出依据范围": "out",
+      "引用已失效": "stale",
+      "不适用": "out"
+    };
+    const CHIP_ORDER = ["符合", "不符合", "无法判定", "超出依据范围", "引用已失效"];
+    const MAX_FILES = 30;
+    const MAX_BYTES = 40 * 1024 * 1024;
+
+    const queue = [];
+    let queueSeq = 0;
+    let running = false;
+    let basisRows = [];
+    let basisReady = false;
+    let basisReason = "正在读取依据库……";
+    let historyItems = [];
+    let current = null;
+    let filterVerdict = "";
+    let selectedKey = "";
+    let visibleKeys = [];
+    let reviewerName = "";
+    let confirmTarget = null;
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    }
+    function shortVerdict(verdict) {
+      return verdict === "超出依据范围" ? "超出依据" : verdict;
+    }
+    function formatSize(bytes) {
+      if (bytes < 1024 * 1024) return Math.max(1, Math.round(bytes / 1024)) + " KB";
+      const mb = bytes / (1024 * 1024);
+      return (mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)) + " MB";
+    }
+    function formatWhen(iso) {
+      if (!iso) return "";
+      const date = new Date(iso.endsWith("Z") || iso.includes("+") ? iso : iso + "Z");
+      if (Number.isNaN(date.getTime())) return iso.slice(0, 16).replace("T", " ");
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+    function badge(style, text) {
+      return `<span class="badge ${style}">${escapeHtml(text)}</span>`;
+    }
+
+    function initTheme() {
+      const stored = localStorage.getItem("elaw-theme");
+      const theme = stored || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      document.documentElement.dataset.theme = theme;
+      paintTheme();
+    }
+    function paintTheme() {
+      const dark = document.documentElement.dataset.theme === "dark";
+      document.querySelector("#themeBtn").textContent = dark ? "浅色" : "深色";
+    }
+    document.querySelector("#themeBtn").addEventListener("click", () => {
+      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem("elaw-theme", next);
+      paintTheme();
+    });
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (event) => {
+      if (localStorage.getItem("elaw-theme")) return;
+      document.documentElement.dataset.theme = event.matches ? "dark" : "light";
+      paintTheme();
+    });
+
+    function parseHash() {
+      const raw = location.hash.replace(/^#/, "");
+      if (raw === "basis") return { page: "basis" };
+      if (raw.startsWith("result/")) return { page: "result", id: decodeURIComponent(raw.slice(7)) };
+      return { page: "check" };
+    }
+    function showPage(page) {
+      document.body.dataset.page = page;
+      document.querySelector("#page-check").hidden = page !== "check";
+      document.querySelector("#page-basis").hidden = page !== "basis";
+      document.querySelector("#page-result").hidden = page !== "result";
+      document.querySelector('[data-page="check"]').classList.toggle("on", page === "check" || page === "result");
+      document.querySelector('[data-page="basis"]').classList.toggle("on", page === "basis");
+    }
+    function applyRoute() {
+      const route = parseHash();
+      showPage(route.page);
+      if (route.page === "result") {
+        const found = historyItems.find((item) => item.id === route.id) || (current && current.id === route.id ? current : null);
+        if (found) openResult(found, false);
+      }
+    }
+    document.querySelectorAll("nav button").forEach((button) => {
+      button.addEventListener("click", () => { location.hash = button.dataset.page; });
+    });
+    document.querySelector("#basisLink").addEventListener("click", () => { location.hash = "basis"; });
+    document.querySelector("#backCheck").addEventListener("click", () => { location.hash = "check"; });
+    window.addEventListener("hashchange", applyRoute);
+
+    function basisStatus(report) {
+      if (!report) return { style: "out", label: "未找到" };
+      const confirmed = report.version_id && report.version_status && report.version_status !== "待确认";
+      if (confirmed) return { style: "ok", label: "已确认" };
+      if (report.outcome === "未找到" || !report.version_id) return { style: "out", label: "未找到" };
+      return { style: "unk", label: "待确认" };
+    }
+    function dedupeReports(items) {
+      const picked = new Map();
+      items.forEach((item) => {
+        const currentRow = picked.get(item.seed_name);
+        const confirmed = item.version_id && item.version_status && item.version_status !== "待确认";
+        if (!currentRow) {
+          picked.set(item.seed_name, item);
+          return;
+        }
+        const currentConfirmed = currentRow.version_id && currentRow.version_status && currentRow.version_status !== "待确认";
+        if (!currentConfirmed && confirmed) picked.set(item.seed_name, item);
+      });
+      return picked;
+    }
+    function paintBasis() {
+      const confirmed = basisRows.filter((row) => basisStatus(row.report).label === "已确认").length;
+      const total = basisRows.length;
+      basisReady = total > 0 && confirmed === total;
+      const summary = total ? `${confirmed} / ${total} 已确认` : "依据库还没有条目";
+      document.querySelector("#basisSummary").textContent = summary;
+      const link = document.querySelector("#basisLink");
+      link.textContent = total ? `依据库：${confirmed} / ${total} 已确认${basisReady ? " ✓" : ""}` : "依据库：状态没有载入";
+      if (!total) basisReason = "依据库状态没有载入，暂时不能开始核查。";
+      else if (!basisReady) basisReason = `还有 ${total - confirmed} 项未确认。请先到依据库对照官网。`;
+      else basisReason = "";
+      syncCheck();
+      renderBasisTable();
+    }
+    function renderBasisTable() {
       const box = document.querySelector("#reports");
-      if (!data.items.length) {
-        box.innerHTML = "<p class='muted'>还没有核验报告。</p>";
+      if (!basisRows.length) {
+        box.innerHTML = "<p class='hint'>还没有种子清单。</p>";
         return;
       }
-      const rows = data.items.map((item) => {
-        const near = (item.detail && item.detail.near_misses || []).slice(0, 3).join("、");
-        const note = item.detail && item.detail.note ? item.detail.note : "";
+      const rank = { "已确认": 0, "待确认": 1, "未找到": 2 };
+      const rows = [...basisRows].sort((a, b) => rank[basisStatus(a.report).label] - rank[basisStatus(b.report).label]);
+      const body = rows.map((row, index) => {
+        const report = row.report;
+        const status = basisStatus(report);
+        const name = report ? report.seed_name : row.seed.name;
+        const source = report ? report.source : (row.seed.source || "");
+        const level = row.seed ? row.seed.level : "";
+        const stateNote = status.label === "已确认" && report.version_status ? ` · ${escapeHtml(report.version_status)}` : "";
+        const who = report && report.verified_by ? `<div class="hint">${escapeHtml(report.verified_by)}</div>` : "";
+        const action = !report || !report.version_id
+          ? "—"
+          : status.label === "已确认"
+            ? (who || `<div class="hint">${escapeHtml(report.version_status || "已核对")}</div>`)
+            : `<button type="button" class="confirm" data-id="${escapeHtml(report.version_id)}" data-name="${escapeHtml(name)}" data-pub="${escapeHtml(report.publish_date || "")}" data-eff="${escapeHtml(report.effective_date || "")}">对照后确认</button>`;
+        const near = ((report && report.detail && report.detail.near_misses) || []).slice(0, 3).join("、");
+        const note = report && report.detail && report.detail.note ? report.detail.note : "";
+        const seedNote = row.seed && row.seed.note ? row.seed.note : "";
         return `<tr>
-          <td>${escapeHtml(item.seed_name)}<div class="muted">${escapeHtml(item.source)}</div></td>
-          <td>${escapeHtml(item.outcome)}<div class="muted">${escapeHtml(item.fulltext)}</div></td>
-          <td>${escapeHtml(item.publish_date || "—")}<br>${escapeHtml(item.effective_date || "—")}</td>
-          <td>${escapeHtml(item.raw_status || "—")}<div class="muted">${escapeHtml(item.superseded_note || note || near || "")}</div></td>
-          <td>${item.version_id ? `<button data-id="${item.version_id}" data-pub="${item.publish_date || ""}" data-eff="${item.effective_date || ""}" class="confirm">对照后确认</button>` : "—"}</td>
-        </tr>`;
+          <td>${escapeHtml(name)}<div class="hint">${escapeHtml([level, source].filter(Boolean).join(" · "))}</div></td>
+          <td>${badge(status.style, status.label)}${stateNote}</td>
+          <td>${escapeHtml((report && report.publish_date) || "—")}<br>${escapeHtml((report && report.effective_date) || "—")}</td>
+          <td>${action}<div><button type="button" class="text more" data-index="${index}">详情</button></div></td>
+        </tr>
+        <tr class="detail" data-detail="${index}" hidden><td colspan="4">
+          <p>原始状态码：${escapeHtml((report && report.raw_status) || "没有")}</p>
+          <p>全文：${escapeHtml((report && report.fulltext) || "—")}</p>
+          <p>检索结果：${escapeHtml((report && report.outcome) || "还没有核验")}</p>
+          ${report && report.superseded_note ? `<p>${escapeHtml(report.superseded_note)}</p>` : ""}
+          ${note ? `<p>${escapeHtml(note)}</p>` : ""}
+          ${near ? `<p>相近名称：${escapeHtml(near)}</p>` : ""}
+          ${seedNote ? `<p>${escapeHtml(seedNote)}</p>` : ""}
+        </td></tr>`;
       }).join("");
-      box.innerHTML = `<table><thead><tr><th>名称</th><th>结果</th><th>公布 / 施行</th><th>原始状态码</th><th></th></tr></thead><tbody>${rows}</tbody></table>
-        <p class="warn">原始状态码没有被翻译成「有效」。请打开官网后再确认。</p>`;
-      box.querySelectorAll(".confirm").forEach((button) => {
-        button.addEventListener("click", () => confirmVersion(button));
+      box.innerHTML = `<table><thead><tr><th>名称</th><th>状态</th><th>公布 / 施行</th><th></th></tr></thead><tbody>${body}</tbody></table>`;
+    }
+    async function loadBasis() {
+      try {
+        const [seedBody, reportBody] = await Promise.all([
+          fetch("/api/seeds").then((response) => response.json()),
+          fetch("/api/reports").then((response) => response.json())
+        ]);
+        const picked = dedupeReports(reportBody.items || []);
+        const seen = new Set();
+        basisRows = [];
+        (seedBody.items || []).forEach((seed) => {
+          seen.add(seed.name);
+          basisRows.push({ seed, report: picked.get(seed.name) || null });
+        });
+        picked.forEach((report) => {
+          if (!seen.has(report.seed_name)) basisRows.push({ seed: null, report });
+        });
+      } catch (error) {
+        basisRows = [];
+      }
+      paintBasis();
+    }
+
+    document.querySelector("#reports").addEventListener("click", (event) => {
+      const more = event.target.closest(".more");
+      if (more) {
+        const row = document.querySelector(`[data-detail="${more.dataset.index}"]`);
+        if (row) row.hidden = !row.hidden;
+        return;
+      }
+      const button = event.target.closest(".confirm");
+      if (button) openConfirm(button);
+    });
+
+    function syncCheck() {
+      const button = document.querySelector("#checkBtn");
+      const note = document.querySelector("#checkBlock");
+      const hasFiles = queue.some((item) => item.state === "ready" || item.state === "error");
+      if (!basisReady) {
+        button.disabled = true;
+        note.textContent = basisReason;
+        return;
+      }
+      note.textContent = hasFiles ? "" : "请先放入报告。";
+      button.disabled = running || !hasFiles;
+    }
+    function addFiles(fileList) {
+      const incoming = [...fileList];
+      const rejected = [];
+      incoming.forEach((file) => {
+        const suffix = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+        if (suffix !== ".doc" && suffix !== ".docx") {
+          rejected.push(`${file.name} 不是 .doc / .docx`);
+          return;
+        }
+        if (file.size > MAX_BYTES) {
+          rejected.push(`${file.name} 超过 40 MB`);
+          return;
+        }
+        if (queue.length >= MAX_FILES) {
+          rejected.push("一次最多 30 份");
+          return;
+        }
+        queue.push({ id: ++queueSeq, file, state: "ready", result: null, error: "" });
+      });
+      document.querySelector("#checkStatus").textContent = rejected.join("；");
+      renderFiles();
+      syncCheck();
+    }
+    function stepHtml(state) {
+      const rank = { wait: 0, ready: 0, parse: 1, check: 2, validate: 3, done: 4, error: 0 };
+      const at = rank[state] || 0;
+      const cell = (n, label) => `<span class="${at === n ? "now" : at > n ? "done" : ""}">${at === n ? "● " : at > n ? "✓ " : ""}${label}</span>`;
+      return `<span class="track">${cell(1, "解析")} → ${cell(2, "核查")} → ${cell(3, "校验")}</span>`;
+    }
+    function displayVerdict(result, item) {
+      const review = (result.reviews || []).filter((row) => row.key === item.key).pop();
+      if (review && review.action === "override" && review.verdict) return review.verdict;
+      return item.verdict;
+    }
+    function verdictLine(result) {
+      const counts = {};
+      (result.findings || []).forEach((item) => {
+        const verdict = displayVerdict(result, item);
+        counts[verdict] = (counts[verdict] || 0) + 1;
+      });
+      const parts = ["不符合", "无法判定", "超出依据范围", "引用已失效", "符合", "有效"]
+        .filter((key) => counts[key])
+        .map((key) => `${counts[key]} ${shortVerdict(key)}`);
+      return parts.join(" · ") || "没有可列出的引用";
+    }
+    function renderFiles() {
+      const box = document.querySelector("#fileList");
+      box.innerHTML = queue.map((item) => {
+        let status = "<span class=\"hint\">待核查</span>";
+        if (item.state === "parse" || item.state === "check" || item.state === "validate") status = stepHtml(item.state);
+        else if (item.state === "done" && item.result) status = `✓ 完成　${escapeHtml(verdictLine(item.result))}${item.result.reused ? " · 沿用上次" : ""}`;
+        else if (item.state === "error") status = `<span class="badge bad">未完成</span> ${escapeHtml(item.error || "")}`;
+        const view = item.state === "done" && item.result && item.result.ok
+          ? `<button type="button" class="view" data-id="${item.id}">查看</button>`
+          : "";
+        const remove = (item.state === "parse" || item.state === "check" || item.state === "validate")
+          ? ""
+          : `<button type="button" class="danger remove" data-id="${item.id}">移除</button>`;
+        return `<div class="file">
+          <div class="name" title="${escapeHtml(item.file.name)}">${escapeHtml(item.file.name)}</div>
+          <div>${formatSize(item.file.size)}</div>
+          <div>${status}</div>
+          <div>${view} ${remove}</div>
+        </div>`;
+      }).join("");
+    }
+    const drop = document.querySelector("#drop");
+    const picker = document.querySelector("#reportFile");
+    drop.addEventListener("click", () => picker.click());
+    drop.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); picker.click(); }
+    });
+    picker.addEventListener("change", () => {
+      addFiles(picker.files);
+      picker.value = "";
+    });
+    ["dragenter", "dragover"].forEach((name) => drop.addEventListener(name, (event) => {
+      event.preventDefault();
+      drop.classList.add("over");
+    }));
+    ["dragleave", "drop"].forEach((name) => drop.addEventListener(name, (event) => {
+      event.preventDefault();
+      drop.classList.remove("over");
+    }));
+    drop.addEventListener("drop", (event) => addFiles(event.dataTransfer.files));
+    document.querySelector("#fileList").addEventListener("click", (event) => {
+      const remove = event.target.closest(".remove");
+      if (remove) {
+        const index = queue.findIndex((item) => String(item.id) === remove.dataset.id);
+        if (index >= 0) queue.splice(index, 1);
+        renderFiles();
+        syncCheck();
+        return;
+      }
+      const view = event.target.closest(".view");
+      if (!view) return;
+      const item = queue.find((row) => String(row.id) === view.dataset.id);
+      if (item && item.result) openResult(item.result, true);
+    });
+    document.querySelector("#asOf").addEventListener("change", () => {
+      queue.forEach((item) => {
+        if (item.state === "done" || item.state === "error") {
+          item.state = "ready";
+          item.result = null;
+          item.error = "";
+        }
+      });
+      renderFiles();
+      syncCheck();
+    });
+    function armSteps(item) {
+      clearTimeout(item.timer);
+      item.state = "parse";
+      item.timer = setTimeout(() => {
+        if (item.state !== "parse") return;
+        item.state = "check";
+        renderFiles();
+        item.timer = setTimeout(() => {
+          if (item.state !== "check") return;
+          item.state = "validate";
+          renderFiles();
+        }, 8000);
+      }, 4000);
+    }
+    document.querySelector("#checkBtn").addEventListener("click", async () => {
+      if (!basisReady || running) return;
+      const batch = queue.filter((item) => item.state === "ready" || item.state === "error");
+      if (!batch.length) return;
+      running = true;
+      syncCheck();
+      const status = document.querySelector("#checkStatus");
+      const day = document.querySelector("#asOf").value;
+      let failed = 0;
+      for (const item of batch) {
+        if (!queue.includes(item)) continue;
+        armSteps(item);
+        renderFiles();
+        status.textContent = `正在核查 ${item.file.name}`;
+        try {
+          const data = new FormData();
+          data.append("files", item.file);
+          data.append("as_of", day);
+          const response = await fetch("/api/eia/check", { method: "POST", body: data });
+          const body = await response.json();
+          clearTimeout(item.timer);
+          const one = (body.items || [])[0];
+          if (!response.ok || !one || !one.ok) {
+            item.state = "error";
+            item.error = (one && one.error) || body.detail || "没有完成";
+            failed += 1;
+          } else {
+            item.state = "done";
+            item.result = one;
+            item.error = "";
+          }
+        } catch (error) {
+          clearTimeout(item.timer);
+          item.state = "error";
+          item.error = "没有完成";
+          failed += 1;
+        }
+        renderFiles();
+      }
+      running = false;
+      status.textContent = failed ? `${batch.length} 份里有 ${failed} 份没有完成。` : `${batch.length} 份已核查。`;
+      syncCheck();
+      loadChecked();
+    });
+
+    function renderHistory() {
+      const box = document.querySelector("#checkedList");
+      if (!historyItems.length) {
+        box.innerHTML = "<p class='hint'>上传一份报告，核查完成后会列在这里。</p>";
+        return;
+      }
+      box.innerHTML = historyItems.map((item) => `<button type="button" class="history" data-id="${escapeHtml(item.id)}">
+        <span class="name">${escapeHtml(item.filename)}</span>
+        <span>${escapeHtml(formatWhen(item.created_at))}</span>
+        <span>${escapeHtml(verdictLine(item))}</span>
+      </button>`).join("");
+    }
+    async function loadChecked() {
+      const box = document.querySelector("#checkedList");
+      try {
+        const data = await (await fetch("/api/eia/reports")).json();
+        historyItems = data.items || [];
+        renderHistory();
+        const route = parseHash();
+        if (route.page === "result") {
+          const found = historyItems.find((item) => item.id === route.id);
+          if (found) openResult(found, false);
+        }
+      } catch (error) {
+        box.innerHTML = "<p class='hint'>已核查列表没有载入。</p>";
+      }
+    }
+    document.querySelector("#checkedList").addEventListener("click", (event) => {
+      const button = event.target.closest(".history");
+      if (!button) return;
+      const item = historyItems.find((row) => row.id === button.dataset.id);
+      if (item) openResult(item, true);
+    });
+
+    function latestReview(item) {
+      if (!current) return null;
+      const rows = (current.reviews || []).filter((row) => row.key === item.key);
+      return rows.length ? rows[rows.length - 1] : null;
+    }
+    function shownVerdict(item) {
+      return displayVerdict(current || { reviews: [] }, item);
+    }
+    function needsHuman(item) {
+      const review = latestReview(item);
+      if (review && (review.action === "confirm" || review.action === "override")) return false;
+      return Boolean(item.needs_review || item.review_note || item.dual_review);
+    }
+    function rankFinding(item) {
+      const verdict = shownVerdict(item);
+      if (verdict === "不符合") return 0;
+      if (needsHuman(item)) return 1;
+      if (verdict === "无法判定") return 2;
+      if (verdict === "引用已失效") return 3;
+      if (verdict === "超出依据范围") return 4;
+      if (verdict === "符合" || verdict === "有效") return 6;
+      return 5;
+    }
+    function orderedFindings() {
+      return [...(current.findings || [])].sort((a, b) => rankFinding(a) - rankFinding(b) || (a.char_start || 0) - (b.char_start || 0));
+    }
+    function openResult(item, push) {
+      current = item;
+      filterVerdict = "";
+      selectedKey = "";
+      if (push && item.id) location.hash = "result/" + encodeURIComponent(item.id);
+      showPage("result");
+      renderResult();
+    }
+    function renderPanes() {
+      const item = orderedFindings().find((row) => row.key === selectedKey);
+      const report = document.querySelector("#paneReport");
+      const basis = document.querySelector("#paneBasis");
+      if (!item) {
+        report.innerHTML = "<h3>报告原文</h3><p class='hint'>选一条结论后，这里高亮报告里的证据。</p>";
+        basis.innerHTML = "<h3>依据原文</h3><p class='hint'>选一条结论后，这里高亮依据里的引用。</p>";
+        return;
+      }
+      const where = [item.section_path, item.char_start != null ? `偏移 ${item.char_start}` : ""].filter(Boolean).join(" · ");
+      report.innerHTML = `<h3>报告原文</h3><p class="path">${escapeHtml(where || "报告片段")}</p><p class="excerpt"><mark>${escapeHtml(item.evidence_span || "没有抽出报告原文")}</mark></p>`;
+      const cite = [item.basis_doc_id, item.basis_path].filter(Boolean).join(" ");
+      const quote = item.quote || "";
+      if (quote) {
+        basis.innerHTML = `<h3>依据原文</h3><p class="path">${escapeHtml(cite || item.source_label || "依据")}</p><p class="excerpt"><mark>${escapeHtml(quote)}</mark></p>`;
+      } else {
+        const extra = [item.source_label, item.replaced_by].filter(Boolean).join(" · ");
+        basis.innerHTML = `<h3>依据原文</h3><p class="hint">这条没有可高亮的依据原文。</p>${extra ? `<p>${escapeHtml(extra)}</p>` : ""}`;
+      }
+      document.querySelectorAll(".pane").forEach((pane) => {
+        const mark = pane.querySelector("mark");
+        if (mark) pane.scrollTop = Math.max(0, mark.offsetTop - 28);
       });
     }
-    async function confirmVersion(button) {
-      const by = prompt("审核人姓名");
-      if (!by) return;
-      const statusValue = prompt("对照官网后的状态：有效 / 已修订 / 已废止 / 未生效", "有效");
-      if (!statusValue) return;
-      const response = await fetch(`/api/laws/versions/${button.dataset.id}/confirm`, {
+    function selectKey(key) {
+      selectedKey = key;
+      document.querySelectorAll("#cards .card").forEach((card) => card.classList.toggle("on", card.dataset.key === key));
+      const card = document.querySelector(`#cards .card[data-key="${CSS.escape(key)}"]`);
+      if (card) card.scrollIntoView({ block: "nearest" });
+      renderPanes();
+    }
+    function renderResult() {
+      if (!current) return;
+      document.querySelector("#resultTitle").textContent = current.filename || "核查结果";
+      document.querySelector("#resultMeta").innerHTML = `
+        <span>基准日 ${escapeHtml(current.as_of || "")}</span>
+        <span>依据版本 ${escapeHtml(current.basis_in_force ?? "—")} 条已核验</span>
+        <span>result_hash <code>${escapeHtml(current.result_hash || "")}</code></span>`;
+      const stats = current.stats || {};
+      const more = current.total > current.shown ? `共 ${current.total} 条，这里列出 ${current.shown} 条。` : "";
+      const rejected = current.rejected ? `另有 ${current.rejected} 条未通过引用校验，没有进入这份结果。` : "";
+      const reused = current.reused ? "与已核查的文件相同，沿用上次结果。" : "";
+      document.querySelector("#resultExtra").textContent = [
+        `表 ${stats.tables ?? "—"}（顶层 ${stats.top_level_tables ?? "—"}）· 图片 ${stats.images ?? 0} 处未解析`,
+        more,
+        rejected,
+        reused
+      ].filter(Boolean).join(" ");
+      const findings = orderedFindings();
+      const counts = {};
+      findings.forEach((item) => {
+        const verdict = shownVerdict(item);
+        counts[verdict] = (counts[verdict] || 0) + 1;
+      });
+      const labels = [...CHIP_ORDER];
+      Object.keys(counts).forEach((key) => { if (!labels.includes(key)) labels.push(key); });
+      document.querySelector("#chips").innerHTML = labels.map((verdict) => {
+        const on = filterVerdict === verdict ? " on" : "";
+        const style = VERDICT_STYLE[verdict] || "out";
+        return `<button type="button" class="chip${on}" data-verdict="${escapeHtml(verdict)}">${badge(style, shortVerdict(verdict))} ${counts[verdict] || 0}</button>`;
+      }).join("");
+      const visible = findings.filter((item) => !filterVerdict || shownVerdict(item) === filterVerdict);
+      visibleKeys = visible.map((item) => item.key);
+      if (!visibleKeys.includes(selectedKey)) selectedKey = visibleKeys[0] || "";
+      const cards = document.querySelector("#cards");
+      if (!visible.length) {
+        cards.innerHTML = "<p class='hint'>这一类没有结论。</p>";
+        renderPanes();
+        return;
+      }
+      cards.innerHTML = visible.map((item) => cardHtml(item)).join("");
+      renderPanes();
+    }
+    function cardHtml(item) {
+      const verdict = shownVerdict(item);
+      const style = VERDICT_STYLE[verdict] || "out";
+      const review = latestReview(item);
+      const kind = KIND[item.kind] || item.kind || "结论";
+      const cite = [item.basis_path, item.source_label].filter(Boolean).join(" · ");
+      const flags = [];
+      if (needsHuman(item)) flags.push(`<span class="badge unk">需人工复核 ⚠</span>`);
+      if (item.dual_review) flags.push(`<span class="hint">${escapeHtml(item.dual_review)}</span>`);
+      if (item.review_note && needsHuman(item)) flags.push(`<span class="hint">${escapeHtml(item.review_note)}</span>`);
+      const quote = item.quote
+        ? `<blockquote>${escapeHtml(item.quote)}</blockquote>`
+        : "";
+      const where = [item.section_path, item.char_start != null ? `偏移 ${item.char_start}` : ""].filter(Boolean).join(" · ");
+      let noted = "";
+      if (review && review.action === "override") {
+        noted = `<p class="hint">已改判为 ${escapeHtml(review.verdict)} · ${escapeHtml(review.by)}${review.note ? " · " + escapeHtml(review.note) : ""}。原结论 ${escapeHtml(item.verdict)}。</p>`;
+      } else if (review && review.action === "confirm") {
+        noted = `<p class="hint">已确认 · ${escapeHtml(review.by)}${review.note ? " · " + escapeHtml(review.note) : ""}</p>`;
+      }
+      const options = ["符合", "不符合", "无法判定", "超出依据范围", "引用已失效", "不适用", "有效"]
+        .map((name) => `<option${name === item.verdict ? " selected" : ""}>${name}</option>`).join("");
+      const on = item.key === selectedKey ? " on" : "";
+      return `<article class="card${on}" data-key="${escapeHtml(item.key)}">
+        <div class="card-head">${badge(style, "● " + shortVerdict(verdict))}<span>${escapeHtml(kind)}${cite ? " · " + escapeHtml(cite) : ""}</span>${flags.join("")}</div>
+        <p>${escapeHtml(item.question || "")}</p>
+        ${quote}
+        <p class="hint">报告证据：${escapeHtml(item.evidence_span || "—")}</p>
+        <p class="hint">位置 ${escapeHtml(where || "—")}</p>
+        ${noted}
+        <div class="ops">
+          <button type="button" class="act" data-act="confirm">确认</button>
+          <button type="button" class="act" data-act="override">改判</button>
+        </div>
+        <form class="review-form" data-action="confirm" data-key="${escapeHtml(item.key)}" hidden>
+          <input name="by" placeholder="审核人" value="${escapeHtml(reviewerName)}" required />
+          <input name="note" placeholder="可选说明" />
+          <button type="submit">记下确认</button>
+        </form>
+        <form class="review-form" data-action="override" data-key="${escapeHtml(item.key)}" hidden>
+          <select name="verdict">${options}</select>
+          <input name="by" placeholder="审核人" value="${escapeHtml(reviewerName)}" required />
+          <input name="note" placeholder="改判理由" required />
+          <button class="danger" type="submit">记下改判</button>
+        </form>
+      </article>`;
+    }
+    document.querySelector("#chips").addEventListener("click", (event) => {
+      const chip = event.target.closest(".chip");
+      if (!chip) return;
+      filterVerdict = filterVerdict === chip.dataset.verdict ? "" : chip.dataset.verdict;
+      renderResult();
+    });
+    document.querySelector("#cards").addEventListener("click", (event) => {
+      const act = event.target.closest(".act");
+      if (act) {
+        const card = act.closest(".card");
+        const target = card.querySelector(`.review-form[data-action="${act.dataset.act}"]`);
+        const willOpen = target.hidden;
+        card.querySelectorAll(".review-form").forEach((form) => { form.hidden = true; });
+        target.hidden = !willOpen;
+        if (willOpen) target.querySelector("input[name='by']").focus();
+        return;
+      }
+      if (event.target.closest("form, button, input, select")) return;
+      const card = event.target.closest(".card");
+      if (card) selectKey(card.dataset.key);
+    });
+    document.querySelector("#cards").addEventListener("submit", async (event) => {
+      const form = event.target;
+      if (!form.matches(".review-form")) return;
+      event.preventDefault();
+      if (!current || !current.id) {
+        document.querySelector("#resultExtra").textContent = "这份结果还不能记下复核。";
+        return;
+      }
+      const data = new FormData(form);
+      reviewerName = String(data.get("by") || "").trim();
+      const response = await fetch(`/api/eia/reports/${current.id}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          status: statusValue.trim(),
-          by,
-          publish_date: button.dataset.pub || null,
-          effective_date: button.dataset.eff || null,
+          key: form.dataset.key,
+          action: form.dataset.action,
+          by: reviewerName,
+          verdict: String(data.get("verdict") || ""),
+          note: String(data.get("note") || "").trim()
+        })
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        document.querySelector("#resultExtra").textContent = body.detail || "没有记下";
+        return;
+      }
+      current.reviews = body.reviews;
+      const saved = historyItems.find((item) => item.id === current.id);
+      if (saved) saved.reviews = body.reviews;
+      renderHistory();
+      renderResult();
+    });
+    document.addEventListener("keydown", (event) => {
+      const tag = event.target && event.target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || event.target.isContentEditable) return;
+      if (document.body.dataset.page !== "result") return;
+      if (event.key !== "j" && event.key !== "k") return;
+      event.preventDefault();
+      if (!visibleKeys.length) return;
+      let index = visibleKeys.indexOf(selectedKey);
+      if (index < 0) index = 0;
+      else index = event.key === "j" ? Math.min(visibleKeys.length - 1, index + 1) : Math.max(0, index - 1);
+      selectKey(visibleKeys[index]);
+    });
+
+    function openConfirm(button) {
+      confirmTarget = { id: button.dataset.id, name: button.dataset.name, pub: button.dataset.pub, eff: button.dataset.eff };
+      document.querySelector("#confirmName").textContent = confirmTarget.name;
+      document.querySelector("#confirmBy").value = reviewerName;
+      document.querySelector("#confirmMessage").textContent = "";
+      document.querySelector("#confirmDialog").showModal();
+      document.querySelector("#confirmBy").focus();
+    }
+    document.querySelector("#confirmClose").addEventListener("click", () => document.querySelector("#confirmDialog").close());
+    document.querySelector("#confirmForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const message = document.querySelector("#confirmMessage");
+      if (!confirmTarget) return;
+      reviewerName = document.querySelector("#confirmBy").value.trim();
+      message.textContent = "正在保存……";
+      const response = await fetch(`/api/laws/versions/${confirmTarget.id}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: document.querySelector("#confirmState").value,
+          by: reviewerName,
+          publish_date: confirmTarget.pub || null,
+          effective_date: confirmTarget.eff || null,
           note: "工作台确认"
         })
       });
       const body = await response.json();
-      alert(response.ok ? "已记下核对" : (body.detail || "没有保存"));
-      if (response.ok) loadReports();
-    }
-    document.querySelector("#collect").addEventListener("click", async () => {
-      status.textContent = "正在核验，法规网站慢的话会要几分钟……";
-      const response = await fetch("/api/laws/collect", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-      const body = await response.json();
-      status.textContent = response.ok ? `完成 ${body.items.length} 项。未确认的版本不会拿来下结论。` : "核验没有完成";
-      loadReports();
+      if (!response.ok) {
+        message.textContent = body.detail || "没有保存";
+        return;
+      }
+      document.querySelector("#confirmDialog").close();
+      document.querySelector("#collectStatus").textContent = `已记下核对：${confirmTarget.name} · ${body.status}`;
+      loadBasis();
     });
-    document.querySelector("#reload").addEventListener("click", loadReports);
+
+    function syncUpload() {
+      const checked = document.querySelector("#confirmBox").checked;
+      const named = document.querySelector("#uploadBy").value.trim();
+      document.querySelector("#uploadBtn").disabled = !(checked && named);
+    }
+    document.querySelector("#confirmBox").addEventListener("change", syncUpload);
+    document.querySelector("#uploadBy").addEventListener("input", syncUpload);
     document.querySelector("#upload").addEventListener("submit", async (event) => {
       event.preventDefault();
       const form = event.target;
       const data = new FormData(form);
       if (!data.get("confirm")) data.set("confirm", "false");
+      reviewerName = document.querySelector("#uploadBy").value.trim();
       const response = await fetch("/api/laws/upload", { method: "POST", body: data });
       const body = await response.json();
       document.querySelector("#uploadStatus").textContent = response.ok
         ? (body.status === "待确认" ? "已保存，尚未核对，评估时不会使用。" : "已保存并记为已核验。")
         : (body.detail || "上传失败");
-      if (response.ok) loadReports();
+      if (response.ok) loadBasis();
     });
-    document.querySelector("#scopeBtn").addEventListener("click", async () => {
-      const topic = document.querySelector("#topic").value;
-      const data = await (await fetch("/api/scope?topic=" + encodeURIComponent(topic))).json();
-      document.querySelector("#scopeOut").textContent = data.result === "OUT_OF_SCOPE" ? "范围外，系统不回答。" : "在预审范围内。";
+    document.querySelector("#collect").addEventListener("click", async () => {
+      const status = document.querySelector("#collectStatus");
+      status.textContent = "正在核验，法规网站慢的话会要几分钟……";
+      const response = await fetch("/api/laws/collect", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const body = await response.json().catch(() => ({}));
+      status.textContent = response.ok ? `完成 ${body.items.length} 项。未确认的版本不会拿来下结论。` : "核验没有完成";
+      loadBasis();
     });
-    function escapeHtml(value) {
-      return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    document.querySelector("#reload").addEventListener("click", loadBasis);
+
+    const llmKept = { max_tokens: 8192, retries: 2, cache: true, prompt_version: "2026-10-21", outbound_allowed: true };
+    function llmPayload() {
+      return {
+        provider: "deepseek",
+        base_url: document.querySelector("#llmBase").value.trim(),
+        model: document.querySelector("#llmModel").value.trim(),
+        thinking: document.querySelector("#llmThinking").value,
+        reasoning_effort: document.querySelector("#llmEffort").value,
+        max_tokens: llmKept.max_tokens,
+        response_format: "json_object",
+        retries: llmKept.retries,
+        cache: llmKept.cache,
+        prompt_version: llmKept.prompt_version,
+        outbound_allowed: llmKept.outbound_allowed,
+        api_key: document.querySelector("#llmKey").value
+      };
     }
-    loadReports();
+    function fillLlm(data) {
+      document.querySelector("#llmModel").value = data.model;
+      document.querySelector("#llmBase").value = data.base_url;
+      document.querySelector("#llmThinking").value = data.thinking;
+      document.querySelector("#llmEffort").value = data.reasoning_effort;
+      document.querySelector("#llmKey").value = "";
+      llmKept.max_tokens = data.max_tokens;
+      llmKept.retries = data.retries;
+      llmKept.cache = Boolean(data.cache);
+      llmKept.prompt_version = data.prompt_version;
+      llmKept.outbound_allowed = Boolean(data.outbound_allowed);
+      const thinking = data.thinking === "enabled" ? `思考 ${data.reasoning_effort}` : "思考关闭";
+      document.querySelector("#llmSummary").textContent = `${data.model} · ${thinking}`;
+    }
+    async function loadLlm() {
+      try {
+        fillLlm(await (await fetch("/api/llm/settings")).json());
+      } catch (error) {
+        document.querySelector("#llmStatus").textContent = "模型设置没有载入。";
+      }
+    }
+    document.querySelector("#llmForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const statusLine = document.querySelector("#llmStatus");
+      statusLine.textContent = "正在保存……";
+      const response = await fetch("/api/llm/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(llmPayload())
+      });
+      const saved = await response.json();
+      if (!response.ok) {
+        statusLine.textContent = saved.detail || "没有保存";
+        return;
+      }
+      fillLlm(saved);
+      statusLine.textContent = "已保存。";
+      document.querySelector("#llmDialog").close();
+    });
+    document.querySelector("#openLlm").addEventListener("click", () => {
+      document.querySelector("#llmStatus").textContent = "";
+      document.querySelector("#llmDialog").showModal();
+    });
+    document.querySelector("#llmClose").addEventListener("click", () => document.querySelector("#llmDialog").close());
+    document.querySelector("#llmPing").addEventListener("click", async () => {
+      const statusLine = document.querySelector("#llmStatus");
+      statusLine.textContent = "正在测试连通……";
+      const response = await fetch("/api/llm/ping", { method: "POST" });
+      const saved = await response.json();
+      statusLine.textContent = response.ok ? `接口可用，模型 ${saved.model}。` : (saved.detail || "测试没有完成");
+    });
+
+    initTheme();
+    syncCheck();
+    syncUpload();
+    loadBasis();
+    loadChecked();
+    loadLlm();
+    applyRoute();
   </script>
 </body>
 </html>

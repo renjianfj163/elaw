@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "医院环评合规预审",
+  title: "环评合规预审",
   description: "辅助预审，不构成法律意见。",
 };
 

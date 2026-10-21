@@ -110,9 +110,15 @@ def _assert_standard_order(paths: list[str]) -> None:
         previous = current
 
 
+_APPENDIX_PATH = re.compile(r"^([A-Z])\.?(\d+(?:\.\d+)*)$")
+
+
 def _clause_key(path: str) -> tuple:
     if path[0].isalpha():
-        letter, rest = path.split(".", 1)
+        matched = _APPENDIX_PATH.match(path)
+        if matched is None:
+            raise BasisValidationError(f"无法识别条款号：{path}")
+        letter, rest = matched.group(1), matched.group(2)
         return (1, letter, tuple(int(part) for part in rest.split(".")))
     return (0, "", tuple(int(part) for part in path.split(".")))
 

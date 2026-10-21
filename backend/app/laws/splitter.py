@@ -8,7 +8,14 @@ CHAPTER = re.compile(rf"^(第{_NUM}章)")
 SECTION = re.compile(rf"^(第{_NUM}节)")
 ARTICLE = re.compile(rf"^(第{_NUM}条)")
 ITEM = re.compile(r"^[（(]([一二三四五六七八九十百]+)[）)]")
-CLAUSE = re.compile(r"^(?P<no>(?:[A-Z]\.\d+(?:\.\d+)*)|\d+(?:\.\d+)+)\b")
+# 条款号后面必须有空白和汉字标题。纯数字、科学计数法和换行后的“4.2.2的要求”不算新条款。
+# 章标题是“1 范围”这种短标题；带句读的脚注不是章。
+CLAUSE = re.compile(
+    r"^(?P<no>(?:[A-Z]\d+(?:\.\d+)*|[A-Z]\.\d+(?:\.\d+)*|\d+(?:\.\d+)+|\d{1,2}))"
+    r"[ \t\u3000]+"
+    r"(?P<rest>[\u4e00-\u9fff].*)$"
+)
+_CHAPTER_PUNCT = re.compile(r"[。，,；;]")
 CN_DIGITS = "零一二三四五六七八九"
 _CN_DIGIT = {char: index for index, char in enumerate(CN_DIGITS)}
 _CN_UNIT = {"十": 10, "百": 100, "千": 1000}
@@ -47,8 +54,15 @@ def clause_number(line: str) -> str | None:
     if not matched:
         return None
     number = matched.group("no")
+    rest = matched.group("rest")
+    if re.fullmatch(r"\d{1,2}", number) and (_CHAPTER_PUNCT.search(rest) or len(rest) > 40):
+        return None
     parts = number.split(".")
-    numeric = parts[1:] if parts[0].isalpha() else parts
+    if parts[0][:1].isalpha():
+        head = parts[0]
+        numeric = ([head[1:]] if len(head) > 1 else []) + parts[1:]
+    else:
+        numeric = parts
     if any(int(part) == 0 for part in numeric):
         return None
     return number

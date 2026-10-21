@@ -97,6 +97,8 @@ def parse_docx_bytes(data: bytes, source_name: str) -> ParseResult:
             document_xml = package.read("word/document.xml")
         except KeyError as exc:
             raise ParseError("DOCX 缺少 word/document.xml") from exc
+        except zipfile.BadZipFile as exc:
+            raise ParseError("DOCX 无法读取") from exc
         rels = _load_rels(package)
         media_files = [name for name in package.namelist() if name.startswith("word/media/")]
     finally:

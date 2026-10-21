@@ -11,8 +11,12 @@ def deepseek_transport():
     base = str(cfg.get("base_url") or "https://api.deepseek.com").rstrip("/")
 
     def send(body: dict) -> str:
+        if not cfg.get("outbound_allowed"):
+            raise RuntimeError("尚未允许把内容发往接口")
         if not api_key:
             raise RuntimeError("未配置 DEEPSEEK_API_KEY")
+        if cfg.get("thinking") == "enabled" and "temperature" in body:
+            raise RuntimeError("思考模式不能发送 temperature")
         response = httpx.post(
             f"{base}/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},

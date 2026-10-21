@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app.basis.api import router as basis_router
 from app.checks.api import router as check_router
+from app.report.api import router as report_router
 from app.db import database_url, make_engine, make_session_factory
 from app.laws.catalog import catalog_csv, parse_catalog
 from app.laws.collect import run_collection
@@ -15,8 +16,9 @@ from app.laws.extract import TextExtractError, extract_text
 from app.laws.http import HttpxClient
 from app.laws.seeds import load_seeds
 from app.laws.store import add_report, add_version, confirm_version
+from app.llm.api import router as llm_router
 from app.llm.provider import load_local_config
-from app.models import Base, VerificationReport
+from app.models import Base, LawVersion, VerificationReport
 from app.scope import judge_scope
 
 DISCLAIMER = "辅助预审，不构成法律意见。"
@@ -26,9 +28,11 @@ SessionFactory = make_session_factory(engine)
 if database_url().startswith("sqlite"):
     Base.metadata.create_all(engine)
 
-app = FastAPI(title="医院环评合规预审")
+app = FastAPI(title="环评合规预审")
 app.include_router(basis_router)
 app.include_router(check_router)
+app.include_router(report_router)
+app.include_router(llm_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://127.0.0.1:3000", "http://localhost:3000"],
@@ -62,7 +66,10 @@ def workbench():
     page = __file__
     from pathlib import Path
 
-    return FileResponse(Path(page).resolve().parent / "static" / "workbench.html")
+    return FileResponse(
+        Path(page).resolve().parent / "static" / "workbench.html",
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.get("/api/health")
@@ -85,7 +92,13 @@ def reports():
     db = _session()
     try:
         rows = db.scalars(select(VerificationReport).order_by(VerificationReport.created_at.desc())).all()
-        return {"items": [_report_dict(row) for row in rows[:200]]}
+        shown = rows[:200]
+        version_ids = [row.version_id for row in shown if row.version_id]
+        versions = {}
+        if version_ids:
+            found = db.scalars(select(LawVersion).where(LawVersion.id.in_(version_ids))).all()
+            versions = {item.id: item for item in found}
+        return {"items": [_report_dict(row, versions.get(row.version_id)) for row in shown]}
     finally:
         db.close()
 
@@ -221,7 +234,7 @@ def _parse_date(value: str) -> date | None:
     return date(year, month, day)
 
 
-def _report_dict(row: VerificationReport) -> dict:
+def _report_dict(row: VerificationReport, version: LawVersion | None = None) -> dict:
     return {
         "id": row.id,
         "seed_name": row.seed_name,
@@ -229,6 +242,8 @@ def _report_dict(row: VerificationReport) -> dict:
         "outcome": row.outcome,
         "fulltext": row.fulltext,
         "version_id": row.version_id,
+        "version_status": version.status if version else None,
+        "verified_by": version.verified_by if version else None,
         "publish_date": row.publish_date.isoformat() if row.publish_date else None,
         "effective_date": row.effective_date.isoformat() if row.effective_date else None,
         "raw_status": row.raw_status,

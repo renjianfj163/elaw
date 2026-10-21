@@ -57,6 +57,23 @@ def test_cn_to_int_and_structure_split():
         {"path": "4.1", "text": "4.1 总要求\n应当写明。\n74.0 天"},
         {"path": "B.1.1", "text": "B.1.1 附录条款\n说明。"},
     ]
+    standard = "\n".join(
+        [
+            "1 范围",
+            "适用于示例。",
+            "1.5",
+            "2.22×10",
+            "4.1 总要求",
+            "应当写明。",
+            "4.2.2的要求见下款。",
+            "A1 附录标题",
+            "A1.1 附录条款",
+            "正文。",
+            "2 这是脚注，不是章标题。",
+        ]
+    )
+    assert [item["path"] for item in split_standard(standard)] == ["1", "4.1", "A1", "A1.1"]
+    assert validate_pieces("国家标准", attach_hashes(split_standard(standard)))["clause_count"] == 4
 
 
 def test_reversed_order_and_hash_are_rejected():
