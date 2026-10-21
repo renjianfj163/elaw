@@ -9,7 +9,8 @@ __pycache__/
 node_modules/
 .next/
 dist/
-data/
+data/**
+!data/repealed_map.csv
 *.db
 *.zip
 .DS_Store

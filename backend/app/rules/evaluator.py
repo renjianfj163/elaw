@@ -20,6 +20,16 @@ _UNIT_ALIAS = {
     "μg/L": "microgram / liter",
     "mg/m3": "milligram / meter ** 3",
     "mg/m³": "milligram / meter ** 3",
+    "mSv": "millisievert",
+    "uSv": "microsievert",
+    "μSv": "microsievert",
+    "µSv": "microsievert",
+    "Sv": "sievert",
+    "mSv/a": "millisievert / year",
+    "mSv/年": "millisievert / year",
+    "uSv/h": "microsievert / hour",
+    "μSv/h": "microsievert / hour",
+    "µSv/h": "microsievert / hour",
 }
 
 

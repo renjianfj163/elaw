@@ -148,6 +148,60 @@ class RejectedFinding(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime)
 
 
+class BasisDocument(Base):
+    __tablename__ = "basis_document"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    doc_id: Mapped[str] = mapped_column(String(80), unique=True)
+    title: Mapped[str] = mapped_column(String(500))
+    kind: Mapped[str] = mapped_column(String(16))
+    publish_date: Mapped[date | None] = mapped_column(Date)
+    effective_date: Mapped[date] = mapped_column(Date)
+    source_note: Mapped[str] = mapped_column(Text)
+    relative_path: Mapped[str] = mapped_column(Text)
+    file_sha256: Mapped[str] = mapped_column(String(64))
+    text_sha256: Mapped[str] = mapped_column(String(64))
+    clause_count: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class BasisClause(Base):
+    __tablename__ = "basis_clause"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    document_id: Mapped[str] = mapped_column(ForeignKey("basis_document.id"))
+    ordinal: Mapped[int] = mapped_column(Integer)
+    path: Mapped[str] = mapped_column(String(300))
+    text: Mapped[str] = mapped_column(Text)
+    text_sha256: Mapped[str] = mapped_column(String(64))
+    verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    verified_by: Mapped[str | None] = mapped_column(String(100))
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class BasisCheckItem(Base):
+    """依据条款生成的检查项。draft 不参与评估，人工审核后才是 active。"""
+
+    __tablename__ = "basis_check_item"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    doc_id: Mapped[str] = mapped_column(String(80))
+    clause_path: Mapped[str] = mapped_column(String(300))
+    clause_sha256: Mapped[str] = mapped_column(String(64))
+    item_code: Mapped[str] = mapped_column(String(80))
+    kind: Mapped[str] = mapped_column(String(20))
+    report_topics: Mapped[list] = mapped_column(JSON)
+    required_params: Mapped[list] = mapped_column(JSON)
+    requirement: Mapped[dict] = mapped_column(JSON)
+    applies_when: Mapped[dict] = mapped_column(JSON)
+    quote: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(16))
+    reviewed_by: Mapped[str | None] = mapped_column(String(100))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime)
+
+
 class ReviewLog(Base):
     __tablename__ = "review_log"
 

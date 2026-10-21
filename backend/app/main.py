@@ -6,6 +6,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from app.basis.api import router as basis_router
+from app.checks.api import router as check_router
 from app.db import database_url, make_engine, make_session_factory
 from app.laws.catalog import catalog_csv, parse_catalog
 from app.laws.collect import run_collection
@@ -25,6 +27,8 @@ if database_url().startswith("sqlite"):
     Base.metadata.create_all(engine)
 
 app = FastAPI(title="医院环评合规预审")
+app.include_router(basis_router)
+app.include_router(check_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://127.0.0.1:3000", "http://localhost:3000"],
