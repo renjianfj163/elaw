@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>医院环评合规预审</title>
+  <style>
+    :root {
+      --paper: #f3efe4;
+      --ink: #1d2822;
+      --green: #1e5c45;
+      --line: #d5ccb8;
+      --card: #fffaf2;
+      --warn: #8a3b2c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 16px/1.6 "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    header, main { width: min(980px, calc(100% - 32px)); margin: 0 auto; }
+    header { padding: 28px 0 8px; }
+    .banner {
+      background: var(--warn);
+      color: #fff8f4;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    h1 { font-weight: 600; font-size: 32px; margin: 18px 0 6px; letter-spacing: 0.02em; }
+    h2 { font-size: 20px; margin: 0 0 10px; color: var(--green); }
+    p.lead { margin-top: 0; color: #3d4a43; }
+    section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+      margin: 16px 0;
+    }
+    label { display: block; font-size: 14px; margin: 10px 0 4px; }
+    input, select, button, textarea {
+      font: inherit;
+      color: inherit;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    button {
+      background: var(--green);
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 14px;
+      cursor: pointer;
+    }
+    button.ghost { background: transparent; color: var(--green); border: 1px solid var(--green); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { border-bottom: 1px solid var(--line); text-align: left; padding: 8px 6px; vertical-align: top; }
+    .muted { color: #5c675f; font-size: 13px; }
+    .warn { color: var(--warn); }
+    @media (max-width: 720px) { .row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="banner">辅助预审，不构成法律意见。结论默认是「无法判定」，不是「符合」。</div>
+    <h1>医院环评合规预审</h1>
+    <p class="lead">单机使用。法规文本留在这台电脑上。自动检索到的日期和状态码都要你对照官网确认，确认前不参与评估。</p>
+  </header>
+  <main>
+    <section>
+      <h2>核对种子清单</h2>
+      <p class="muted">会访问国家法律法规数据库、生态环境部公开检索页、国家标准公开检索页。国标正文不会自动下载。这一步不调用大模型。</p>
+      <button id="collect">开始核验</button>
+      <button class="ghost" id="reload">刷新报告</button>
+      <p id="collectStatus" class="muted"></p>
+      <div id="reports"></div>
+    </section>
+    <section>
+      <h2>人工上传法规或标准</h2>
+      <form id="upload">
+        <div class="row">
+          <div><label>名称</label><input name="name" required placeholder="与官网标题一致" /></div>
+          <div>
+            <label>层级</label>
+            <select name="level">
+              <option>法律</option><option>行政法规</option><option>部门规章</option>
+              <option>名录</option><option>国家标准</option><option>行业标准</option>
+              <option>规范性文件</option><option>司法解释</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div><label>公布日期</label><input name="publish_date" type="date" /></div>
+          <div><label>施行日期</label><input name="effective_date" type="date" /></div>
+        </div>
+        <label>文件（PDF / DOCX / TXT）</label>
+        <input name="file" type="file" required accept=".pdf,.docx,.txt,.md" />
+        <label>审核人</label>
+        <input name="by" placeholder="对照官网的人" />
+        <label><input type="checkbox" name="confirm" value="true" style="width:auto" /> 我已对照官网核对，可以记为已核验</label>
+        <p><button type="submit">上传</button></p>
+        <p id="uploadStatus" class="muted"></p>
+      </form>
+    </section>
+    <section>
+      <h2>范围</h2>
+      <p class="muted">消防、用地、执业许可、地方标准等会返回范围外，系统不会硬答。</p>
+      <div class="row">
+        <input id="topic" placeholder="例如：消防" />
+        <button id="scopeBtn" type="button">查看</button>
+      </div>
+      <p id="scopeOut"></p>
+    </section>
+  </main>
+  <script>
+    const status = document.querySelector("#collectStatus");
+    async function loadReports() {
+      const data = await (await fetch("/api/reports")).json();
+      const box = document.querySelector("#reports");
+      if (!data.items.length) {
+        box.innerHTML = "<p class='muted'>还没有核验报告。</p>";
+        return;
+      }
+      const rows = data.items.map((item) => {
+        const near = (item.detail && item.detail.near_misses || []).slice(0, 3).join("、");
+        const note = item.detail && item.detail.note ? item.detail.note : "";
+        return `<tr>
+          <td>${escapeHtml(item.seed_name)}<div class="muted">${escapeHtml(item.source)}</div></td>
+          <td>${escapeHtml(item.outcome)}<div class="muted">${escapeHtml(item.fulltext)}</div></td>
+          <td>${escapeHtml(item.publish_date || "—")}<br>${escapeHtml(item.effective_date || "—")}</td>
+          <td>${escapeHtml(item.raw_status || "—")}<div class="muted">${escapeHtml(item.superseded_note || note || near || "")}</div></td>
+          <td>${item.version_id ? `<button data-id="${item.version_id}" data-pub="${item.publish_date || ""}" data-eff="${item.effective_date || ""}" class="confirm">对照后确认</button>` : "—"}</td>
+        </tr>`;
+      }).join("");
+      box.innerHTML = `<table><thead><tr><th>名称</th><th>结果</th><th>公布 / 施行</th><th>原始状态码</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+        <p class="warn">原始状态码没有被翻译成「有效」。请打开官网后再确认。</p>`;
+      box.querySelectorAll(".confirm").forEach((button) => {
+        button.addEventListener("click", () => confirmVersion(button));
+      });
+    }
+    async function confirmVersion(button) {
+      const by = prompt("审核人姓名");
+      if (!by) return;
+      const statusValue = prompt("对照官网后的状态：有效 / 已修订 / 已废止 / 未生效", "有效");
+      if (!statusValue) return;
+      const response = await fetch(`/api/laws/versions/${button.dataset.id}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: statusValue.trim(),
+          by,
+          publish_date: button.dataset.pub || null,
+          effective_date: button.dataset.eff || null,
+          note: "工作台确认"
+        })
+      });
+      const body = await response.json();
+      alert(response.ok ? "已记下核对" : (body.detail || "没有保存"));
+      if (response.ok) loadReports();
+    }
+    document.querySelector("#collect").addEventListener("click", async () => {
+      status.textContent = "正在核验，法规网站慢的话会要几分钟……";
+      const response = await fetch("/api/laws/collect", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const body = await response.json();
+      status.textContent = response.ok ? `完成 ${body.items.length} 项。未确认的版本不会拿来下结论。` : "核验没有完成";
+      loadReports();
+    });
+    document.querySelector("#reload").addEventListener("click", loadReports);
+    document.querySelector("#upload").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      const data = new FormData(form);
+      if (!data.get("confirm")) data.set("confirm", "false");
+      const response = await fetch("/api/laws/upload", { method: "POST", body: data });
+      const body = await response.json();
+      document.querySelector("#uploadStatus").textContent = response.ok
+        ? (body.status === "待确认" ? "已保存，尚未核对，评估时不会使用。" : "已保存并记为已核验。")
+        : (body.detail || "上传失败");
+      if (response.ok) loadReports();
+    });
+    document.querySelector("#scopeBtn").addEventListener("click", async () => {
+      const topic = document.querySelector("#topic").value;
+      const data = await (await fetch("/api/scope?topic=" + encodeURIComponent(topic))).json();
+      document.querySelector("#scopeOut").textContent = data.result === "OUT_OF_SCOPE" ? "范围外，系统不回答。" : "在预审范围内。";
+    });
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+    }
+    loadReports();
+  </script>
+</body>
+</html>

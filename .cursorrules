@@ -1,0 +1,15 @@
+# 医院环评合规预审
+
+先读仓库根目录的 `hospital-eia-compliance-spec.md`，再改代码。规格与代码冲突时，以规格为准。
+
+- 严禁用 LLM 做数值比较、单位换算或日期比较，必须走 `backend/app/rules/evaluator.py`。
+- 严禁在代码里写死法规限值或条文原文。数值只允许来自 `status=active` 且所属版本已人工核验的 `check_item`。
+- 种子清单不是事实。未写入核验通过（`verified_at` 有值且状态为有效、施行日不晚于基准日）的版本，不得参与评估。
+- 思考模式不发送 temperature。可复现只依赖 `llm_cache`：键为 hash(模型, prompt 版本, 输入)，`result_hash` 用缓存中的 JSON 计算。
+- 任何 LLM 调用输出必须过 Pydantic schema 校验，失败重试最多 2 次，仍失败则该项「无法判定」。
+- 引用校验失败不得降级放行。校验不过的结论写入 `rejected_finding`。
+- 定性项即使用同一模型做两遍，报告也必须标明「同源双审」，并默认建议人工复核。
+- 不得新增规格第 3 节之外的依赖。规格已写明的例外只有：`httpx`（调用模型与公开法规站点）、`pypdf`（文本型 PDF）、`python-multipart`（上传）、`pyyaml`（配置）。如需再新增，先说明理由。
+- 国家标准全文不要用爬虫绕过公开平台的阅读或下载限制；取不到就走人工上传。
+- 所有人工确认、改判、核验写入 `review_log`。
+- 范围外事项返回 `OUT_OF_SCOPE`，不要硬答。

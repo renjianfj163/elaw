@@ -1,0 +1,12 @@
+# 换模型只改这个文件。密钥放在环境变量 DEEPSEEK_API_KEY，不要写进这里。
+llm:
+  provider: deepseek
+  base_url: https://api.deepseek.com
+  model: deepseek-v4-flash
+  thinking: enabled
+  reasoning_effort: high
+  max_tokens: 8192
+  response_format: json_object
+  retries: 2
+  cache: true
+  prompt_version: "2026-10-21"

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>医院环评合规预审 · Windows 下载</title>
+  <style>
+    :root { --paper:#efe6d4; --ink:#1b2620; --green:#1b5a42; --seal:#8d3c2e; --card:#fffaf1; --line:#d9cdb6; }
+    * { box-sizing: border-box; }
+    body { margin:0; background: radial-gradient(circle at top, #f7f1e4, var(--paper) 42%); color:var(--ink); font:17px/1.65 "Palatino Linotype","Songti SC","SimSun",serif; }
+    main { width:min(820px, calc(100% - 36px)); margin:0 auto; padding:36px 0 64px; }
+    .seal { display:inline-block; border:1px solid var(--seal); color:var(--seal); padding:2px 8px; letter-spacing:.2em; font-size:13px; }
+    h1 { font-size:40px; font-weight:600; line-height:1.25; margin:14px 0 8px; }
+    .note { background:var(--seal); color:#fff8f3; padding:12px 14px; border-radius:10px; font-family:"Segoe UI","Microsoft YaHei",sans-serif; font-size:15px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:22px; margin-top:18px; }
+    a.button { display:inline-block; background:var(--green); color:white; text-decoration:none; padding:12px 18px; border-radius:999px; font-family:"Segoe UI","Microsoft YaHei",sans-serif; }
+    ol { padding-left:1.2em; }
+    li { margin:6px 0; }
+    code { font-family: Consolas, monospace; font-size:.92em; }
+    .small { color:#4d5a53; font-family:"Segoe UI","Microsoft YaHei",sans-serif; font-size:14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="seal">单机 · Windows</div>
+    <h1>医院建设项目环保审批合规预审</h1>
+    <p class="note">辅助预审，不构成法律意见。材料默认留在你自己的电脑上。程序不会把没核对过的法规当成已经生效。</p>
+    <div class="card">
+      <p><a class="button" href="https://github.com/renjianfj163/elaw/releases/latest/download/hospital-eia-windows.zip">下载 Windows 压缩包</a></p>
+      <p class="small">适用 Windows 10 和 Windows 11。解压后双击 <code>启动（无需Docker）.bat</code>。第一次会安装运行所需的 Python 库，然后打开浏览器。</p>
+      <ol>
+        <li>安装 <a href="https://www.python.org/downloads/windows/">Python 3.11 或更高版本</a>，勾选 Add python.exe to PATH。</li>
+        <li>解压压缩包，双击启动脚本。</li>
+        <li>在工作台里上传法规文本，或让程序去公开网站核验种子清单。看到的日期和状态码，请再对照官网点一次确认。</li>
+      </ol>
+      <p class="small">如果电脑里已经有 Docker Desktop，可以改用 <code>启动（Docker）.bat</code>。那一条使用 PostgreSQL。</p>
+    </div>
+    <div class="card">
+      <h2>它现在能做什么</h2>
+      <p>把法律、法规和标准收进本机库，按条切开，并留下核验报告。数值规则由程序比较，不交给对话模型。引用必须能在原文里逐字对上。</p>
+      <p>国标全文请自己上传。消防、用地、医疗机构执业许可、地方标准不在这版范围内，遇到这些事项会标明范围外。</p>
+      <p class="small">只有你以后自己配置了 DeepSeek 密钥，并运行参数抽取或定性判断时，相关文字才会发送到 DeepSeek。法规核验这一步不调用模型。</p>
+    </div>
+  </main>
+</body>
+</html>
