@@ -5,7 +5,7 @@ import httpx
 from app.llm.provider import load_llm_config
 
 
-def deepseek_transport():
+def deepseek_transport(timeout: float = 180):
     cfg = load_llm_config()
     api_key = os.environ.get("DEEPSEEK_API_KEY", "")
     base = str(cfg.get("base_url") or "https://api.deepseek.com").rstrip("/")
@@ -21,7 +21,7 @@ def deepseek_transport():
             f"{base}/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},
             json=body,
-            timeout=180,
+            timeout=timeout,
         )
         response.raise_for_status()
         message = response.json()["choices"][0]["message"]

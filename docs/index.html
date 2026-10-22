@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>环评合规预审 · Windows 下载</title>
+  <title>环评合规预审</title>
   <style>
     :root { --paper:#efe6d4; --ink:#1b2620; --green:#1b5a42; --seal:#8d3c2e; --card:#fffaf1; --line:#d9cdb6; }
     * { box-sizing: border-box; }
@@ -13,34 +13,54 @@
     h1 { font-size:40px; font-weight:600; line-height:1.25; margin:14px 0 8px; }
     .note { background:var(--seal); color:#fff8f3; padding:12px 14px; border-radius:10px; font-family:"Segoe UI","Microsoft YaHei",sans-serif; font-size:15px; }
     .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:22px; margin-top:18px; }
-    a.button { display:inline-block; background:var(--green); color:white; text-decoration:none; padding:12px 18px; border-radius:999px; font-family:"Segoe UI","Microsoft YaHei",sans-serif; }
-    ol { padding-left:1.2em; }
-    li { margin:6px 0; }
-    code { font-family: Consolas, monospace; font-size:.92em; }
+    a.button, span.button { display:inline-block; background:var(--green); color:white; text-decoration:none; padding:12px 18px; border-radius:999px; font-family:"Segoe UI","Microsoft YaHei",sans-serif; }
     .small { color:#4d5a53; font-family:"Segoe UI","Microsoft YaHei",sans-serif; font-size:14px; }
+    .demo { margin-top:8px; }
+    .row { display:flex; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); opacity:0; transform:translateY(8px); animation: rise 6s infinite; }
+    .row:nth-child(1) { animation-delay: 0.2s; }
+    .row:nth-child(2) { animation-delay: 0.8s; }
+    .row:nth-child(3) { animation-delay: 1.4s; }
+    .stamp { color:var(--seal); border:1px solid var(--seal); border-radius:999px; padding:0 8px; font-size:13px; letter-spacing:.12em; }
+    @keyframes rise {
+      0% { opacity:0; transform:translateY(8px); }
+      12% { opacity:1; transform:none; }
+      70% { opacity:1; transform:none; }
+      100% { opacity:0; transform:translateY(8px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .row { animation:none; opacity:1; transform:none; }
+    }
   </style>
 </head>
 <body>
   <main>
-    <div class="seal">单机 · Windows</div>
-    <h1>医院建设项目环保审批合规预审</h1>
-    <p class="note">辅助预审，不构成法律意见。材料默认留在你自己的电脑上。程序不会把没核对过的法规当成已经生效。</p>
-    <div class="card">
-      <p><a class="button" href="https://github.com/renjianfj163/elaw/releases/latest/download/hospital-eia-windows.zip">下载 Windows 压缩包</a></p>
-      <p class="small">适用 Windows 10 和 Windows 11。解压后双击 <code>启动（无需Docker）.bat</code>。第一次会安装运行所需的 Python 库，然后打开浏览器。</p>
-      <ol>
-        <li>安装 <a href="https://www.python.org/downloads/windows/">Python 3.11 或更高版本</a>，勾选 Add python.exe to PATH。</li>
-        <li>解压压缩包，双击启动脚本。</li>
-        <li>在工作台里上传法规文本，或让程序去公开网站核验种子清单。看到的日期和状态码，请再对照官网点一次确认。</li>
-      </ol>
-      <p class="small">如果电脑里已经有 Docker Desktop，可以改用 <code>启动（Docker）.bat</code>。那一条使用 PostgreSQL。</p>
+    <div class="seal">示意</div>
+    <h1>环评合规预审</h1>
+    <p class="note">辅助预审，不构成法律意见。下面的动画是虚构示意，不是合规结论。报告留在你的电脑上，这个网页不接收文件。</p>
+    <div class="card demo" aria-hidden="true">
+      <p class="small">示意综合医院 · 虚构画面</p>
+      <div class="row"><span>示意条目 · 分区说明</span><span class="stamp">示意</span></div>
+      <div class="row"><span>示意条目 · 引用核对</span><span class="stamp">示意</span></div>
+      <div class="row"><span>示意条目 · 记录是否写到</span><span class="stamp">示意</span></div>
     </div>
     <div class="card">
-      <h2>它现在能做什么</h2>
-      <p>把法律、法规和标准收进本机库，按条切开，并留下核验报告。数值规则由程序比较，不交给对话模型。引用必须能在原文里逐字对上。</p>
-      <p>国标全文请自己上传。消防、用地、医疗机构执业许可、地方标准不在这版范围内，遇到这些事项会标明范围外。</p>
-      <p class="small">只有你以后自己配置了 DeepSeek 密钥，并运行参数抽取或定性判断时，相关文字才会发送到 DeepSeek。法规核验这一步不调用模型。</p>
+      <p><a class="button" id="localRun" href="elaw://launch">本地运行</a></p>
+      <p id="notWindows" class="small" hidden>暂仅支持 Windows。</p>
+      <p class="small">点下去之后，浏览器会问要不要打开 elaw。这是系统提示，选打开即可，也可以勾选始终允许。</p>
+      <p class="small">没反应？<a href="https://github.com/renjianfj163/elaw/releases/latest/download/hospital-eia-windows.zip">下载安装包</a>。装好后也可以从桌面的「环评合规预审」打开。</p>
+      <p class="small">模型密钥在本机工作台里自己填写，不会做进安装包。没有打开外发时，程序不会把报告片段送去接口。</p>
     </div>
   </main>
+  <script>
+    (function () {
+      var windows = /Windows/i.test(navigator.userAgent || "");
+      if (!windows) {
+        var button = document.getElementById("localRun");
+        var note = document.getElementById("notWindows");
+        if (button) button.hidden = true;
+        if (note) note.hidden = false;
+      }
+    })();
+  </script>
 </body>
 </html>

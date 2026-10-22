@@ -1,4 +1,5 @@
 # 换模型只改这个文件。密钥放在环境变量 DEEPSEEK_API_KEY，不要写进这里。
+# 思考模式为 enabled 时，请求不发送 temperature。
 llm:
   provider: deepseek
   base_url: https://api.deepseek.com
@@ -10,4 +11,4 @@ llm:
   retries: 2
   cache: true
   prompt_version: "2026-10-21"
-  outbound_allowed: true
+  outbound_allowed: false

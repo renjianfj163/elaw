@@ -14,12 +14,11 @@ if not exist "backend\.venv\Scripts\python.exe" (
 )
 backend\.venv\Scripts\python -m pip install -r backend\requirements.txt
 if errorlevel 1 goto fail
-if not exist data mkdir data
-set DATABASE_URL=sqlite:///./data/elaw.db
 set PYTHONPATH=%CD%\backend
 set ELAW_CONFIG_DIR=%CD%\config
-start "" http://127.0.0.1:8000/
-backend\.venv\Scripts\python -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
+set ELAW_GUARD=1
+backend\.venv\Scripts\python -m app.local_launch
+if errorlevel 1 goto fail
 goto end
 :fail
 echo 启动没有成功。请把上面的报错留着。

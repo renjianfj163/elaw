@@ -23,7 +23,7 @@ class LlmSettingsIn(BaseModel):
     retries: int = Field(default=2, ge=0, le=5)
     cache: bool = True
     prompt_version: str = "2026-10-21"
-    outbound_allowed: bool = True
+    outbound_allowed: bool = False
     api_key: str = ""
 
 
@@ -78,7 +78,7 @@ def _normalized(raw: dict) -> dict:
         "retries": int(raw.get("retries") if raw.get("retries") is not None else 2),
         "cache": bool(raw.get("cache", True)),
         "prompt_version": prompt_version,
-        "outbound_allowed": bool(raw.get("outbound_allowed", True)),
+        "outbound_allowed": bool(raw.get("outbound_allowed", False)),
     }
 
 

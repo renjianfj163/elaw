@@ -1,7 +1,6 @@
 from datetime import date
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -18,6 +17,8 @@ from app.laws.seeds import load_seeds
 from app.laws.store import add_report, add_version, confirm_version
 from app.llm.api import router as llm_router
 from app.llm.provider import load_local_config
+from app.local_guard import install_guard
+from app.local_guard import router as guard_router
 from app.models import Base, LawVersion, VerificationReport
 from app.scope import judge_scope
 
@@ -33,12 +34,8 @@ app.include_router(basis_router)
 app.include_router(check_router)
 app.include_router(report_router)
 app.include_router(llm_router)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://127.0.0.1:3000", "http://localhost:3000"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.include_router(guard_router)
+install_guard(app)
 
 
 class CollectIn(BaseModel):

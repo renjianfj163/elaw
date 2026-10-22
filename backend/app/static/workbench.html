@@ -261,9 +261,10 @@
     <div class="top-actions">
       <button type="button" id="themeBtn" class="text">深色</button>
       <button type="button" id="openLlm">⚙ 模型设置</button>
+      <button type="button" id="exitBtn" class="text">退出</button>
     </div>
   </header>
-  <p class="disclaimer">辅助预审，不构成法律意见。</p>
+  <p class="disclaimer">辅助预审，不构成法律意见。报告留在这台电脑上。只有你在模型设置里打开外发，并填写自己的 API 密钥之后，相关片段才会发到你填写的接口。</p>
   <main>
     <section id="page-check">
       <div class="bar">
@@ -390,7 +391,9 @@
           </select>
         </div>
       </div>
-      <div class="field"><label for="llmKey">API 密钥</label><input id="llmKey" type="password" autocomplete="off" placeholder="留空则沿用已有密钥" /></div>
+      <div class="field"><label for="llmKey">API 密钥</label><input id="llmKey" type="password" autocomplete="off" placeholder="由你自己填写，只留在这次运行的内存里" /></div>
+      <label class="inline" for="llmOutbound"><input id="llmOutbound" type="checkbox" /> 允许外发。打开后，检查项草稿、定性判断和连通测试会把相关片段发到上面的接口。</label>
+      <p class="hint">密钥不会写入配置文件，也不会发给公开网页。上传报告做引用核验不调用模型。</p>
       <p>
         <button class="primary" type="submit">保存设置</button>
         <button id="llmPing" type="button">测试连通</button>
@@ -1121,7 +1124,7 @@
     });
     document.querySelector("#reload").addEventListener("click", loadBasis);
 
-    const llmKept = { max_tokens: 8192, retries: 2, cache: true, prompt_version: "2026-10-21", outbound_allowed: true };
+    const llmKept = { max_tokens: 8192, retries: 2, cache: true, prompt_version: "2026-10-21", outbound_allowed: false };
     function llmPayload() {
       return {
         provider: "deepseek",
@@ -1134,7 +1137,7 @@
         retries: llmKept.retries,
         cache: llmKept.cache,
         prompt_version: llmKept.prompt_version,
-        outbound_allowed: llmKept.outbound_allowed,
+        outbound_allowed: document.querySelector("#llmOutbound").checked,
         api_key: document.querySelector("#llmKey").value
       };
     }
@@ -1149,8 +1152,10 @@
       llmKept.cache = Boolean(data.cache);
       llmKept.prompt_version = data.prompt_version;
       llmKept.outbound_allowed = Boolean(data.outbound_allowed);
+      document.querySelector("#llmOutbound").checked = llmKept.outbound_allowed;
       const thinking = data.thinking === "enabled" ? `思考 ${data.reasoning_effort}` : "思考关闭";
-      document.querySelector("#llmSummary").textContent = `${data.model} · ${thinking}`;
+      const outbound = llmKept.outbound_allowed ? "外发已开" : "外发关闭";
+      document.querySelector("#llmSummary").textContent = `${data.model} · ${thinking} · ${outbound}`;
     }
     async function loadLlm() {
       try {
@@ -1174,6 +1179,10 @@
         return;
       }
       fillLlm(saved);
+      if (saved.outbound_allowed && !saved.api_key_configured) {
+        statusLine.textContent = "外发已打开，但还没有你自己的 API 密钥。密钥不会写入文件。";
+        return;
+      }
       statusLine.textContent = "已保存。";
       document.querySelector("#llmDialog").close();
     });
@@ -1182,12 +1191,42 @@
       document.querySelector("#llmDialog").showModal();
     });
     document.querySelector("#llmClose").addEventListener("click", () => document.querySelector("#llmDialog").close());
+    document.querySelector("#exitBtn").addEventListener("click", async () => {
+      if (!window.confirm("退出本机工作台？已经保存在这台电脑上的记录还会在。")) return;
+      const response = await fetch("/api/shutdown", { method: "POST" });
+      const body = await response.json().catch(() => ({}));
+      if (response.ok && body.ok) {
+        document.body.replaceChildren();
+        const note = document.createElement("p");
+        note.textContent = "本机工作台已退出。可以关闭这个页面。";
+        note.style.padding = "48px 24px";
+        note.style.textAlign = "center";
+        document.body.append(note);
+      }
+    });
+    setInterval(() => {
+      fetch("/api/heartbeat", { method: "POST" }).catch(() => {});
+    }, 20000);
     document.querySelector("#llmPing").addEventListener("click", async () => {
       const statusLine = document.querySelector("#llmStatus");
       statusLine.textContent = "正在测试连通……";
-      const response = await fetch("/api/llm/ping", { method: "POST" });
-      const saved = await response.json();
-      statusLine.textContent = response.ok ? `接口可用，模型 ${saved.model}。` : (saved.detail || "测试没有完成");
+      try {
+        const response = await fetch("/api/llm/ping", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(llmPayload())
+        });
+        const saved = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          statusLine.textContent = typeof saved.detail === "string" ? saved.detail : "测试没有完成";
+          return;
+        }
+        const latest = await fetch("/api/llm/settings");
+        if (latest.ok) fillLlm(await latest.json());
+        statusLine.textContent = `接口可用，模型 ${saved.model}。`;
+      } catch (error) {
+        statusLine.textContent = "没有连上本机服务。";
+      }
     });
 
     initTheme();
