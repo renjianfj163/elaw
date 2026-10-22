@@ -14,9 +14,7 @@
     .note { background:var(--seal); color:#fff8f3; padding:12px 14px; border-radius:10px; font-family:"Segoe UI","Microsoft YaHei",sans-serif; font-size:15px; }
     .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:22px; margin-top:18px; }
     a.button, span.button { display:inline-block; background:var(--green); color:white; text-decoration:none; padding:12px 18px; border-radius:999px; font-family:"Segoe UI","Microsoft YaHei",sans-serif; }
-    a.button.is-waiting { background:#143f2e; }
     .small { color:#4d5a53; font-family:"Segoe UI","Microsoft YaHei",sans-serif; font-size:14px; }
-    .miss { margin:8px 0 0; background:#f8ebe6; border:1px solid var(--seal); border-radius:10px; padding:12px 14px; color:var(--ink); }
     .keep { white-space:nowrap; }
   </style>
 </head>
@@ -26,48 +24,21 @@
     <h1>环评合规预审</h1>
     <p class="note">辅助预审，不构成法律意见。报告留在你的电脑上，这个网页不接收文件。</p>
     <div class="card">
-      <p><a class="button" id="localRun" href="elaw://launch">本地运行</a></p>
+      <p><a class="button" id="download" href="https://github.com/renjianfj163/elaw/releases/latest/download/hospital-eia-windows.zip">下载安装包</a></p>
       <p id="notWindows" class="small" hidden>暂仅支持 Windows。</p>
-      <p id="launchStatus" class="small" hidden>正在请浏览器打开 elaw。如果出现系统提示，选打开即可，也可以勾选始终允许。</p>
-      <p id="launchMiss" class="miss" hidden>若仍然没反应，就是这台电脑还没有 elaw 的打开方式。请先<a href="https://github.com/renjianfj163/elaw/releases/latest/download/hospital-eia-windows.zip">下载安装包</a>，解压后双击「<span class="keep">启动（无需Docker）.bat</span>」。装好后回到这个页面再点一次。</p>
-      <p class="small">点下去之后，只有这台电脑已经装好，浏览器才会问要不要打开 elaw。这是系统提示，选打开即可，也可以勾选始终允许。</p>
-      <p class="small">没反应？<a href="https://github.com/renjianfj163/elaw/releases/latest/download/hospital-eia-windows.zip">下载安装包</a>。安装包已自带 Python，解压后不用再装。装好后也可以从桌面的「环评合规预审」打开。</p>
+      <p class="small">安装包已自带 Python，解压后不用再装。解压后双击「<span class="keep">启动（无需Docker）.bat</span>」。装好后也可以从桌面的「环评合规预审」打开。</p>
       <p class="small">直接上传旧版 Word（.doc）需要本机另装 LibreOffice。用 Word 或 WPS 另存为 .docx 再上传则不用。模型密钥在本机工作台里自己填写，不会做进安装包。没有打开外发时，程序不会把报告片段送去接口。</p>
     </div>
   </main>
   <script>
     (function () {
       var windows = /Windows/i.test(navigator.userAgent || "");
-      var button = document.getElementById("localRun");
-      var note = document.getElementById("notWindows");
-      var status = document.getElementById("launchStatus");
-      var miss = document.getElementById("launchMiss");
       if (!windows) {
+        var button = document.getElementById("download");
+        var note = document.getElementById("notWindows");
         if (button) button.hidden = true;
         if (note) note.hidden = false;
-        return;
       }
-      if (!button) return;
-      var attempt = 0;
-      button.addEventListener("click", function () {
-        var current = ++attempt;
-        var handedOff = false;
-        function mark() { handedOff = true; }
-        window.addEventListener("blur", mark, { once: true });
-        document.addEventListener("visibilitychange", function onHide() {
-          if (!document.hidden) return;
-          mark();
-          document.removeEventListener("visibilitychange", onHide);
-        });
-        button.classList.add("is-waiting");
-        if (status) status.hidden = false;
-        if (miss) miss.hidden = true;
-        window.setTimeout(function () {
-          if (current !== attempt || handedOff) return;
-          if (status) status.hidden = true;
-          if (miss) miss.hidden = false;
-        }, 1200);
-      });
     })();
   </script>
 </body>

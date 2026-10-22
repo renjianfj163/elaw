@@ -4,14 +4,11 @@ from pathlib import Path
 def test_public_demo_page_stays_local_and_fictional():
     page = Path(__file__).resolve().parents[2] / "docs" / "index.html"
     text = page.read_text(encoding="utf-8")
-    assert "elaw://launch" in text
+    assert "hospital-eia-windows.zip" in text
+    assert "下载安装包" in text
+    assert "elaw://launch" not in text
     assert "示意" in text
-    assert "没反应" in text
-    assert 'id="launchMiss"' in text
-    assert "正在请浏览器打开" in text
-    assert "若仍然没反应" in text
     assert "暂仅支持 Windows" in text
-    assert "始终允许" in text
     assert "已自带 Python" in text
     assert "LibreOffice" in text
     assert "另存为 .docx" in text
