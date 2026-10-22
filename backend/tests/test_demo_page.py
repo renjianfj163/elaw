@@ -7,6 +7,9 @@ def test_public_demo_page_stays_local_and_fictional():
     assert "elaw://launch" in text
     assert "示意" in text
     assert "没反应" in text
+    assert 'id="launchMiss"' in text
+    assert "正在请浏览器打开" in text
+    assert "若仍然没反应" in text
     assert "暂仅支持 Windows" in text
     assert "始终允许" in text
     assert "已自带 Python" in text
