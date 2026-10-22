@@ -430,7 +430,7 @@
     let queueSeq = 0;
     let running = false;
     let basisRows = [];
-    let basisReady = false;
+    let basisLoaded = false;
     let basisReason = "正在读取依据库……";
     let historyItems = [];
     let current = null;
@@ -537,13 +537,14 @@
     function paintBasis() {
       const confirmed = basisRows.filter((row) => basisStatus(row.report).label === "已确认").length;
       const total = basisRows.length;
-      basisReady = total > 0 && confirmed === total;
+      const pending = total - confirmed;
+      basisLoaded = total > 0;
       const summary = total ? `${confirmed} / ${total} 已确认` : "依据库还没有条目";
       document.querySelector("#basisSummary").textContent = summary;
       const link = document.querySelector("#basisLink");
-      link.textContent = total ? `依据库：${confirmed} / ${total} 已确认${basisReady ? " ✓" : ""}` : "依据库：状态没有载入";
+      link.textContent = total ? `依据库：${confirmed} / ${total} 已确认${pending ? "" : " ✓"}` : "依据库：状态没有载入";
       if (!total) basisReason = "依据库状态没有载入，暂时不能开始核查。";
-      else if (!basisReady) basisReason = `还有 ${total - confirmed} 项未确认。请先到依据库对照官网。`;
+      else if (pending) basisReason = `还有 ${pending} 项未确认，这些不会拿来下结论。`;
       else basisReason = "";
       syncCheck();
       renderBasisTable();
@@ -627,12 +628,13 @@
       const button = document.querySelector("#checkBtn");
       const note = document.querySelector("#checkBlock");
       const hasFiles = queue.some((item) => item.state === "ready" || item.state === "error");
-      if (!basisReady) {
+      if (!basisLoaded) {
         button.disabled = true;
         note.textContent = basisReason;
         return;
       }
-      note.textContent = hasFiles ? "" : "请先放入报告。";
+      const fileNote = hasFiles ? "" : "请先放入报告。";
+      note.textContent = [fileNote, basisReason].filter(Boolean).join(" ");
       button.disabled = running || !hasFiles;
     }
     function addFiles(fileList) {
@@ -760,7 +762,7 @@
       }, 4000);
     }
     document.querySelector("#checkBtn").addEventListener("click", async () => {
-      if (!basisReady || running) return;
+      if (!basisLoaded || running) return;
       const batch = queue.filter((item) => item.state === "ready" || item.state === "error");
       if (!batch.length) return;
       running = true;
