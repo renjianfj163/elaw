@@ -30,7 +30,7 @@ def install_confirmed(db: Session, folder: Path | None = None) -> int:
         return 0
     added = 0
     for item in load_confirmed(root):
-        text = (root / item["file"]).read_text(encoding="utf-8")
+        text = (root / item["file"]).read_text(encoding="utf-8").replace("\r\n", "\n").replace("\r", "\n")
         digest = sha256_text(text)
         if digest != item["sha256"]:
             raise ValueError(f"确认依据的哈希对不上：{item['name']}")
