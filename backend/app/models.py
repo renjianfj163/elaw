@@ -203,7 +203,7 @@ class BasisCheckItem(Base):
 
 
 class EiaReport(Base):
-    """已核查的环评报告。同一份文件、同一个基准日只保留一条。"""
+    """已核查的环评报告。复用看 input_key，不按文件和基准日单独复用。"""
 
     __tablename__ = "eia_report"
 
@@ -211,6 +211,7 @@ class EiaReport(Base):
     filename: Mapped[str] = mapped_column(String(500))
     file_sha256: Mapped[str] = mapped_column(String(64))
     as_of: Mapped[date] = mapped_column(Date)
+    input_key: Mapped[str | None] = mapped_column(String(64))
     result_hash: Mapped[str] = mapped_column(String(64))
     basis_in_force: Mapped[int] = mapped_column(Integer)
     rejected: Mapped[int] = mapped_column(Integer)

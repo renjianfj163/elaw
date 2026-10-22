@@ -4,9 +4,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.citation.check import BasisClauseView, check_report
+from app.citation.check import BasisClauseView, admissible_clauses, check_report
+from app.citation.limits import DoseLimit, load_verified_limits, subject_of_quantity
 from app.citation.place import describe_place
-from app.citation.gate import accept_quote, citation_result_hash
+from app.citation.gate import accept_quote
 from app.citation.numeric import compare_values
 from app.citation.quantities import Quantity, extract_quantities
 from app.citation.timeliness import load_repeal_map, matching_repeal
@@ -69,40 +70,63 @@ def test_numeric_quote_constraint_and_prediction_use_the_engine():
         _clause("职业工作人员连续五年平均有效剂量3mSv", "B.1.1"),
         _clause("公众年有效剂量1mSv", "B.1.2"),
     ]
-    first = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=load_repeal_map())
-    second = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=load_repeal_map())
+    limits = [
+        _limit("B.1.1", "职业", "五年", 3, "连续五年平均有效剂量3mSv"),
+        _limit("B.1.2", "公众", "年有效", 1, "年有效剂量1mSv"),
+    ]
+    first = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=load_repeal_map(), dose_limits=limits)
+    second = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=load_repeal_map(), dose_limits=limits)
     assert first.result_hash == second.result_hash
+    assert first.scope_note == "本次仅做引用核验，未对依据逐条审查"
+    assert first.uncovered == ["屏蔽计算", "联锁", "监测", "管理制度"]
+    assert first.coverage["checked"] == 2
+    assert first.coverage["unchecked"] == 0
 
     quotes = [item for item in first.findings if item.kind == "quote_numeric"]
-    assert [item.verdict for item in quotes] == ["符合", "符合"]
+    assert [item.verdict for item in quotes] == ["与依据一致", "与依据一致"]
     assert all(item.trace and item.trace[-1]["op"] == "==" for item in quotes)
     assert all(item.quote in clauses[0].text or item.quote in clauses[1].text for item in quotes)
 
     changed = [_clause("职业工作人员连续五年平均有效剂量4mSv", "B.1.1"), clauses[1]]
-    mismatched = check_report(parsed, as_of=date(2026, 10, 21), clauses=changed, repeal_rows=load_repeal_map())
+    changed_limits = [_limit("B.1.1", "职业", "五年", 4, "连续五年平均有效剂量4mSv"), limits[1]]
+    mismatched = check_report(
+        parsed, as_of=date(2026, 10, 21), clauses=changed, repeal_rows=load_repeal_map(), dose_limits=changed_limits
+    )
     occupational = next(item for item in mismatched.findings if item.kind == "quote_numeric" and "3mSv" in item.evidence_span)
-    assert occupational.verdict == "不符合"
+    assert occupational.verdict == "不一致"
 
     constraints = [item for item in first.findings if item.kind == "constraint_limit"]
     assert constraints
-    assert {item.verdict for item in constraints} == {"符合"}
+    assert {item.verdict for item in constraints} == {"未超限值"}
+    assert {item.source_label for item in constraints} == {"合理性检查"}
     assert any("工作人员" in item.evidence_span for item in constraints)
     assert any("公众" in item.evidence_span for item in constraints)
 
     predictions = [item for item in first.findings if item.kind == "prediction_constraint"]
     assert len(predictions) == 2
-    assert {item.verdict for item in predictions} == {"符合"}
+    assert {item.verdict for item in predictions} == {"内部自洽"}
     assert {item.source_label for item in predictions} == {"报告自设约束"}
 
-    early = check_report(parsed, as_of=date(2024, 11, 14), clauses=clauses, repeal_rows=load_repeal_map())
-    assert _law(first.findings, "环境保护法").verdict == "引用已失效"
-    assert _law(early.findings, "环境保护法").verdict == "有效"
+    early = check_report(
+        parsed, as_of=date(2024, 11, 14), clauses=clauses, repeal_rows=load_repeal_map(), dose_limits=limits
+    )
+    dated = check_report(
+        parsed,
+        as_of=date(2026, 10, 21),
+        clauses=clauses,
+        repeal_rows=load_repeal_map(),
+        dose_limits=limits,
+        compiled_on=date(2024, 11, 14),
+    )
+    assert _law(first.findings, "环境保护法").verdict == "基准日已废止"
+    assert _law(early.findings, "环境保护法").verdict == "基准日有效"
+    assert _law(dated.findings, "环境保护法").verdict == "编制时有效 / 基准日已废止"
     assert _law(first.findings, "环境保护法").replaced_by is None
     assert next(item for item in first.findings if "HJ1198" in item.evidence_span).verdict == "超出依据范围"
 
     stale = [_clause("职业工作人员连续五年平均有效剂量3mSv", "B.1.1", when=date(2027, 1, 1))]
-    not_yet = check_report(parsed, as_of=date(2026, 10, 21), clauses=stale, repeal_rows=load_repeal_map())
-    assert all(item.verdict == "无法判定" for item in not_yet.findings if item.kind == "quote_numeric")
+    not_yet = check_report(parsed, as_of=date(2026, 10, 21), clauses=stale, repeal_rows=load_repeal_map(), dose_limits=limits)
+    assert all(item.verdict == "无法核对" for item in not_yet.findings if item.kind == "quote_numeric")
 
 
 def test_constraint_anchors_on_the_sentence_that_sets_the_value():
@@ -130,14 +154,18 @@ def test_constraint_anchors_on_the_sentence_that_sets_the_value():
         _clause("职业工作人员连续五年平均有效剂量20mSv", "B.1.1"),
         _clause("公众年有效剂量1mSv", "B.1.2"),
     ]
-    checked = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=[])
+    limits = [
+        _limit("B.1.1", "职业", "五年", 20, "连续五年平均有效剂量20mSv"),
+        _limit("B.1.2", "公众", "年有效", 1, "年有效剂量1mSv"),
+    ]
+    checked = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=[], dose_limits=limits)
     constraints = [item for item in checked.findings if item.kind == "constraint_limit"]
     spans = [item.evidence_span for item in constraints]
     assert len(spans) == 2
     assert any("约束值取2mSv" in span for span in spans)
     assert any("作为剂量约束值" in span for span in spans)
     assert all("低于1mSv" not in span and "4.14" not in span and "执行" not in span for span in spans)
-    assert {item.verdict for item in constraints} == {"符合"}
+    assert {item.verdict for item in constraints} == {"未超限值"}
     for item in constraints:
         assert parsed.full_text[item.char_start : item.char_end] == item.evidence_span
 
@@ -176,11 +204,23 @@ def test_dose_limit_phrase_keeps_the_subject_before_the_comma():
         ]
     )
     clauses = [_clause(occupational, "B1.1.1.1"), _clause(public, "B1.2.1")]
-    checked = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=[])
+    limits = _limits_from_clauses(clauses)
+    checked = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=[], dose_limits=limits)
     quotes = [item for item in checked.findings if item.kind == "quote_numeric"]
     assert len(quotes) == 9
-    assert {item.verdict for item in quotes} == {"符合"}
+    assert {item.verdict for item in quotes} == {"与依据一致"}
     assert all(item.quote for item in quotes)
+    fifties = [
+        item
+        for item in quotes
+        if "50mSv" in item.evidence_span.replace("150", "").replace("500", "")
+    ]
+    assert len(fifties) == 2
+    assert {item.basis_path for item in fifties} == {"B1.1.1.1", "B1.2.1"}
+    bare = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=[], dose_limits=[])
+    quotes = [item for item in bare.findings if item.kind == "quote_numeric"]
+    assert {item.verdict for item in quotes} == {"无法核对"}
+    assert quotes and all(item.reason == "依据库中无已核验的 GB 18871 条款" for item in quotes)
 
 
 def test_verified_standard_matches_code_outside_the_book_title():
@@ -199,9 +239,10 @@ def test_verified_standard_matches_code_outside_the_book_title():
     assert all(not item.evidence_span.startswith(" ") and not item.evidence_span.endswith(" ") for item in listed)
     for item in listed:
         assert parsed.full_text[item.char_start : item.char_end] == item.evidence_span
-    assert _law(bare.findings, "环境保护法").verdict == "引用已失效"
+    assert _law(bare.findings, "环境保护法").verdict == "基准日已废止"
     standard = next(item for item in listed if "GB18871" in item.evidence_span)
-    assert standard.verdict == "超出依据范围"
+    assert standard.verdict == "尚未核验"
+    assert "GB 18871" in standard.reason
     verified = check_report(
         parsed,
         as_of=date(2026, 10, 21),
@@ -209,7 +250,7 @@ def test_verified_standard_matches_code_outside_the_book_title():
         repeal_rows=rows,
     )
     matched = next(item for item in verified.findings if item.kind == "timeliness" and "GB18871" in item.evidence_span)
-    assert matched.verdict == "有效"
+    assert matched.verdict == "在依据库中"
     still_out = next(item for item in verified.findings if "HJ1198" in item.evidence_span)
     assert still_out.verdict == "超出依据范围"
 
@@ -222,27 +263,34 @@ def test_sample_report_cases():
     bare = check_report(parsed, as_of=date(2026, 10, 21), clauses=[], repeal_rows=rows)
     early = check_report(parsed, as_of=date(2024, 11, 14), clauses=[], repeal_rows=rows)
     for name in ("环境保护法", "环境影响评价法", "放射性污染防治法"):
-        assert _law(bare.findings, name).verdict == "引用已失效"
-        assert _law(early.findings, name).verdict == "有效"
+        assert _law(bare.findings, name).verdict == "基准日已废止"
+        assert _law(early.findings, name).verdict == "基准日有效"
         assert _law(bare.findings, name).replaced_by in (None, "")
         assert rows[[row.name for row in rows].index(name)].replaced_by == ""
     assert next(item for item in bare.findings if "HJ1198" in item.evidence_span).verdict == "超出依据范围"
-    assert all(item.verdict == "无法判定" for item in bare.findings if item.kind == "quote_numeric")
+    assert all(item.verdict == "无法核对" for item in bare.findings if item.kind == "quote_numeric")
 
     clauses = _clauses_from_sample_table(parsed)
-    checked = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=rows)
+    limits = _limits_from_clauses(clauses)
+    checked = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=rows, dose_limits=limits)
     quotes = [item for item in checked.findings if item.kind == "quote_numeric"]
     assert len(quotes) >= 6
-    assert {item.verdict for item in quotes} == {"符合"}
-    assert all(item.source_label == "依据原文" and item.trace[-1]["op"] == "==" for item in quotes)
+    assert {item.verdict for item in quotes} == {"与依据一致"}
+    assert all(item.source_label == "已核验限值表" and item.trace[-1]["op"] == "==" for item in quotes)
 
     mutated = list(clauses)
     mutated[0] = _shift_first_number(mutated[0])
-    shifted = check_report(parsed, as_of=date(2026, 10, 21), clauses=mutated, repeal_rows=rows)
-    assert any(item.verdict == "不符合" for item in shifted.findings if item.kind == "quote_numeric")
+    shifted = check_report(
+        parsed,
+        as_of=date(2026, 10, 21),
+        clauses=mutated,
+        repeal_rows=rows,
+        dose_limits=_limits_from_clauses(mutated),
+    )
+    assert any(item.verdict == "不一致" for item in shifted.findings if item.kind == "quote_numeric")
 
     constraints = [item for item in checked.findings if item.kind == "constraint_limit"]
-    assert constraints and {item.verdict for item in constraints} == {"符合"}
+    assert constraints and {item.verdict for item in constraints} == {"未超限值"}
     joined = " ".join(item.evidence_span for item in constraints)
     assert "约束值取2mSv" in joined
     assert "作为剂量约束值" in joined
@@ -251,8 +299,8 @@ def test_sample_report_cases():
     predictions = [item for item in checked.findings if item.kind == "prediction_constraint"]
     assert len(predictions) == 2
     assert {item.source_label for item in predictions} == {"报告自设约束"}
-    assert {item.verdict for item in predictions} == {"符合"}
-    again = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=rows)
+    assert {item.verdict for item in predictions} == {"内部自洽"}
+    again = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=rows, dose_limits=limits)
     assert checked.result_hash == again.result_hash
 
 
@@ -370,6 +418,146 @@ def _law(findings, name: str):
         hits = [item for item in findings if item.kind == "timeliness" and name in item.evidence_span]
     assert len(hits) == 1
     return hits[0]
+
+
+def test_constraint_evidence_stays_on_the_setting_section():
+    parsed = _document(
+        [
+            ("7.3.2剂量约束值", []),
+            ("本项目辐射工作人员年受照剂量约束值取2mSv。", []),
+            ("11.2.5工作人员和公众受照剂量估计", []),
+            (
+                "职业人员和公众年附加有效剂量值分别为1.70E-1mSv、1.03E-3mSv，满足年剂量约束值（2mSv/a，0.1mSv/a）的要求。",
+                [],
+            ),
+        ]
+    )
+    clause = _clause("职业工作人员连续五年平均有效剂量20mSv", "B.1.1")
+    limits = [_limit("B.1.1", "职业", "五年", 20, "连续五年平均有效剂量20mSv")]
+    checked = check_report(parsed, as_of=date(2026, 10, 21), clauses=[clause], repeal_rows=[], dose_limits=limits)
+    constraints = [item for item in checked.findings if item.kind == "constraint_limit"]
+    assert len(constraints) == 1
+    assert "7.3.2" in constraints[0].place
+    assert "11.2" not in constraints[0].place
+    assert "分别为" not in constraints[0].evidence_span
+    assert constraints[0].verdict == "未超限值"
+    predictions = [item for item in checked.findings if item.kind == "prediction_constraint"]
+    assert predictions
+    assert all("11.2.5" in item.place for item in predictions)
+    assert all("7.3.2" not in item.place for item in predictions)
+
+
+def test_textbooks_are_skipped_and_ordinances_stay_out_of_scope():
+    parsed = _document(
+        [
+            ("表6评价依据", []),
+            ("《中华人民共和国环境保护法》", [(2, 1, 2)]),
+            ("《辐射防护培训教材》", [(2, 1, 2)]),
+            ("《放射治疗辐射安全与防护要求》（HJ1198-2021）", [(2, 1, 2)]),
+            ("《建设项目环境保护管理条例》", [(2, 1, 2)]),
+        ]
+    )
+    checked = check_report(parsed, as_of=date(2026, 10, 21), clauses=[], repeal_rows=load_repeal_map(), dose_limits=[])
+    assert _law(checked.findings, "环境保护法").verdict == "基准日已废止"
+    textbook = next(item for item in checked.findings if "培训教材" in item.evidence_span)
+    assert textbook.verdict == "非规范性文件，跳过"
+    assert next(item for item in checked.findings if "HJ1198" in item.evidence_span).verdict == "超出依据范围"
+    ordinance = next(item for item in checked.findings if "建设项目环境保护管理条例" in item.evidence_span)
+    assert ordinance.verdict == "超出依据范围"
+
+
+def test_reference_material_and_ncrp_are_not_out_of_scope():
+    parsed = _document(
+        [
+            ("表6评价依据", []),
+            ("法规", [(2, 1, 1)]),
+            ("《中华人民共和国环境保护法》", [(2, 1, 2)]),
+            ("技术标准", [(2, 2, 1)]),
+            ("《电离辐射防护与辐射源安全基本标准》（GB18871-2002）", [(2, 2, 2)]),
+            ("技术资料", [(2, 3, 1)]),
+            ("NCRP第151号报告", [(2, 3, 2)]),
+            ("《辐射防护培训教材》", [(2, 3, 2)]),
+        ]
+    )
+    checked = check_report(parsed, as_of=date(2026, 10, 21), clauses=[], repeal_rows=load_repeal_map(), dose_limits=[])
+    assert not any(item.evidence_span.strip() == "技术资料" for item in checked.findings)
+    ncrp = next(item for item in checked.findings if "NCRP" in item.evidence_span)
+    assert ncrp.verdict == "非规范性文件，跳过"
+    assert ncrp.section == "技术资料"
+    textbook = next(item for item in checked.findings if "培训教材" in item.evidence_span)
+    assert textbook.verdict == "非规范性文件，跳过"
+    standard = next(item for item in checked.findings if "GB18871" in item.evidence_span)
+    assert standard.verdict == "尚未核验"
+    assert standard.section == "技术标准"
+    assert "依据库中无已核验的 GB 18871 条款" == standard.reason
+    outside = [item for item in checked.findings if item.verdict == "超出依据范围"]
+    assert outside == []
+
+
+def test_repealed_law_is_not_an_admissible_basis():
+    text = "这里只是一条已核验正文。"
+    clause = BasisClauseView(
+        doc_id="env-law",
+        title="中华人民共和国环境保护法",
+        path="1",
+        text=text,
+        text_sha256=sha256_text(text),
+        effective_date=date(2015, 1, 1),
+        verified=True,
+    )
+    rows = load_repeal_map()
+    assert admissible_clauses([clause], date(2026, 10, 21), rows) == []
+    assert len(admissible_clauses([clause], date(2024, 11, 14), rows)) == 1
+
+
+def test_unverified_dose_limit_is_ignored(tmp_path):
+    path = tmp_path / "dose_limits.csv"
+    path.write_text(
+        "doc_id,clause_path,population,organ,period,value,unit,quote,verified\n"
+        "GB18871-2002,B.1.1,职业,,五年,20,mSv/a,20mSv,false\n"
+        "GB18871-2002,B.1.2,公众,,年有效,1,mSv/a,1mSv,true\n",
+        encoding="utf-8",
+    )
+    rows = load_verified_limits(path)
+    assert len(rows) == 1
+    assert rows[0].clause_path == "B.1.2"
+
+
+def _limit(path: str, population: str, period: str, value: float, quote: str, organ: str = "") -> DoseLimit:
+    return DoseLimit(
+        doc_id="GB18871-2002",
+        clause_path=path,
+        population=population,
+        organ=organ,
+        period=period,
+        value=value,
+        unit="mSv/a",
+        quote=quote,
+        verified=True,
+    )
+
+
+def _limits_from_clauses(clauses: list[BasisClauseView]) -> list[DoseLimit]:
+    rows = []
+    for clause in clauses:
+        for quantity in extract_quantities(clause.text):
+            subject = subject_of_quantity(quantity)
+            assert subject is not None, clause.text
+            population, organ, period = subject
+            rows.append(
+                DoseLimit(
+                    doc_id=clause.doc_id,
+                    clause_path=clause.path,
+                    population=population,
+                    organ=organ,
+                    period=period,
+                    value=quantity.value,
+                    unit=quantity.unit,
+                    quote=quantity.window,
+                    verified=True,
+                )
+            )
+    return rows
 
 
 def _clause(text: str, path: str, *, when: date = date(2003, 4, 1)) -> BasisClauseView:

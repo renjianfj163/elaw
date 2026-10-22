@@ -14,7 +14,28 @@ from app.laws.titles import clean_title
 
 _BOOK = re.compile(r"《([^》]+)》")
 _PREFIX = "中华人民共和国"
-_HEADERS = {"法规", "文件", "技术标准", "其他"}
+_SECTIONS = {
+    "法律": "法规",
+    "法规": "法规",
+    "行政法规": "法规",
+    "规章": "法规",
+    "文件": "文件",
+    "技术标准": "技术标准",
+    "标准": "技术标准",
+    "其他": "其他",
+    "技术资料": "技术资料",
+    "教材": "教材",
+    "参考资料": "参考资料",
+    "参考文献": "参考资料",
+}
+_SKIP_SECTIONS = {"技术资料", "教材", "参考资料"}
+_PUBLICATION = re.compile(r"NCRP|ICRP|UNSCEAR|教材|技术资料|培训教材", re.IGNORECASE)
+_CODE = re.compile(
+    r"(?:GBZ?|HJ|GA|WS|JJG)\s*/?\s*T?\s*\d+(?:\.\d+)?\s*[-—]\s*\d{4}",
+    re.IGNORECASE,
+)
+_DOC_NO = re.compile(r"第\s*\d+\s*号|〔\d{4}〕|\[\d{4}\]|令第\s*\d+")
+_LEGAL_TAIL = ("法", "条例", "规定", "办法", "细则", "决定", "法典")
 
 
 @dataclass(frozen=True)
@@ -31,6 +52,7 @@ class BibliographyEntry:
     text: str
     char_start: int
     char_end: int
+    section: str = ""
 
 
 def default_map_path() -> Path:
@@ -77,6 +99,7 @@ def evaluation_basis_entries(blocks) -> list[BibliographyEntry]:
         return []
     entries: list[BibliographyEntry] = []
     started = False
+    section = ""
     for block in blocks[caption_at + 1 :]:
         if not block.table_path or block.table_path[0].table != top:
             if started:
@@ -86,7 +109,11 @@ def evaluation_basis_entries(blocks) -> list[BibliographyEntry]:
         raw = block.text or ""
         leading = len(raw) - len(raw.lstrip())
         text = raw.strip()
-        if not text or text in _HEADERS:
+        if not text:
+            continue
+        heading = _SECTIONS.get(clean_title(text))
+        if heading and len(clean_title(text)) <= 8:
+            section = heading
             continue
         books = _BOOK.findall(text)
         name = books[0].strip() if books else text
@@ -97,9 +124,47 @@ def evaluation_basis_entries(blocks) -> list[BibliographyEntry]:
                 text=text,
                 char_start=start,
                 char_end=start + len(text),
+                section=section,
             )
         )
     return entries
+
+
+def designated_basis(text: str) -> str | None:
+    """项目预定依据的标准号或法律名。只用于把它们从「超出依据」里分开，不带限值。"""
+    compact = re.sub(r"[^A-Za-z0-9]", "", text or "").upper()
+    if "GB18871" in compact:
+        return "GB 18871"
+    if "生态环境法典" in (text or ""):
+        return "生态环境法典"
+    return None
+
+
+def is_non_normative(name: str, text: str, section: str = "") -> bool:
+    """没有标准号、文号，也不像法律或行政法规标题的条目。教材、技术资料、NCRP 报告走这里。"""
+    if section in _SKIP_SECTIONS:
+        return True
+    blob = f"{name}\n{text}"
+    if _CODE.search(blob):
+        return False
+    if _PUBLICATION.search(blob):
+        return True
+    if _DOC_NO.search(blob):
+        return False
+    title = clean_title(name)
+    if any(title.endswith(suffix) for suffix in _LEGAL_TAIL):
+        return False
+    return True
+
+
+def repeal_fingerprint(rows: list[RepealRow]) -> str:
+    from app.hashing import stable_hash
+
+    payload = [
+        {"name": row.name, "repealed_on": row.repealed_on.isoformat(), "replaced_by": row.replaced_by}
+        for row in sorted(rows, key=lambda item: item.name)
+    ]
+    return stable_hash({"rows": payload})
 
 
 def matching_repeal(name: str, rows: list[RepealRow]) -> RepealRow | None:

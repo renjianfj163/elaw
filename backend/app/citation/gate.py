@@ -35,6 +35,7 @@ def citation_result_hash(
     basis_sha: str,
     as_of: date,
     findings: list[dict],
+    parser_version: str,
     llm_output: dict | None = None,
 ) -> str:
     return stable_hash(
@@ -42,6 +43,7 @@ def citation_result_hash(
             "report_sha256": report_sha,
             "basis_sha256": basis_sha,
             "rule_version": RULE_VERSION,
+            "parser_version": parser_version,
             "as_of": as_of.isoformat(),
             "llm_output": llm_output or {},
             "findings": findings,

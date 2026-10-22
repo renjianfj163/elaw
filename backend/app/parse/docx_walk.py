@@ -16,6 +16,8 @@ from xml.etree import ElementTree
 
 from pydantic import BaseModel, Field
 
+PARSER_VERSION = "docx-walk-1"
+
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
 R = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
@@ -69,6 +71,8 @@ class ParseResult(BaseModel):
     full_text: str
     stats: ParseStats
     blocks: list[Block] = Field(default_factory=list)
+    parser_version: str = PARSER_VERSION
+    parse_note: str = ""
 
 
 @dataclass

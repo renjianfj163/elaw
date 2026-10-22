@@ -37,3 +37,16 @@ def make_engine(url: str | None = None):
 
 def make_session_factory(engine):
     return sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+
+def ensure_runtime_schema(engine) -> None:
+    """已有的 sqlite 库补上后加的列。新库由 create_all 建齐。"""
+    if not str(engine.url).startswith("sqlite"):
+        return
+    with engine.begin() as conn:
+        rows = conn.exec_driver_sql("PRAGMA table_info(eia_report)").fetchall()
+        if not rows:
+            return
+        names = {row[1] for row in rows}
+        if "input_key" not in names:
+            conn.exec_driver_sql("ALTER TABLE eia_report ADD COLUMN input_key VARCHAR(64)")

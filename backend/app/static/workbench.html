@@ -201,6 +201,7 @@
     .badge.unk { color: var(--unk); background: var(--unk-bg); }
     .badge.out { color: var(--out); background: var(--out-bg); }
     .badge.stale { color: var(--stale); background: var(--stale-bg); }
+    .badge.skip { color: var(--muted); background: transparent; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
     .span-2 { grid-column: 1 / -1; }
     .field label { display: block; margin-bottom: 4px; }
@@ -223,6 +224,13 @@
       padding: 8px 0 10px;
     }
     .meta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 6px 0; }
+    .coverage { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 8px 0; }
+    .coverage div { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+    .coverage strong { display: block; font-size: 18px; }
+    .coverage span { color: var(--muted); font-size: 13px; }
+    .bundle table td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--line); }
+    .bundle tr.on td { background: var(--mark); }
+    .bundle tr[data-key] { cursor: pointer; }
     .meta code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; color: var(--ink); }
     .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
     .chip { border-radius: 999px; background: var(--card); }
@@ -278,6 +286,7 @@
     dialog .grid-2 input, dialog .grid-2 select { width: 100%; }
     @media (max-width: 800px) {
       .file, .history, .history-open, .split, .grid-2 { grid-template-columns: 1fr; }
+      .coverage { grid-template-columns: 1fr 1fr; }
       .top { flex-wrap: wrap; }
       .top-actions { margin-left: 0; }
     }
@@ -303,13 +312,14 @@
         <button type="button" id="basisLink" class="text"></button>
         <span aria-hidden="true">·</span>
         <label class="inline" for="asOf">基准日 <input id="asOf" type="date" value="2026-10-21" required /></label>
-        <span class="hint">按此日期的现行法衡量</span>
+        <label class="inline" for="compiledOn">编制日 <input id="compiledOn" type="date" /></label>
+        <span class="hint">只做引用核验，不逐条审查依据。编制日可留空。</span>
       </div>
       <div id="drop" class="drop" tabindex="0" role="button">
-        <strong>拖拽 .doc / .docx 到这里，或点击选择</strong>
-        <p class="hint">一次最多 30 份，单份不超过 40 MB。每份单独核查。</p>
+        <strong>拖拽 .doc / .docx / .pdf 到这里，或点击选择</strong>
+        <p class="hint">一次最多 30 份，单份不超过 40 MB。每份单独核查。PDF 需要能复制出文字；扫描件请先另存为 Word。表格不会按单元格拆开。</p>
       </div>
-      <input id="reportFile" type="file" accept=".doc,.docx" multiple hidden />
+      <input id="reportFile" type="file" accept=".doc,.docx,.pdf" multiple hidden />
       <div id="fileList"></div>
       <div class="actions">
         <span id="checkBlock" class="hint"></span>
@@ -365,7 +375,9 @@
       <div class="result-head">
         <button type="button" id="backCheck" class="text">← 返回核查</button>
         <h2 id="resultTitle" style="margin-top:4px"></h2>
+        <p id="resultScope"></p>
         <div id="resultMeta" class="meta"></div>
+        <div id="coverageBar" class="coverage"></div>
         <p id="resultExtra" class="hint"></p>
         <div id="chips" class="chips"></div>
       </div>
@@ -448,13 +460,35 @@
     const VERDICT_STYLE = {
       "符合": "ok",
       "有效": "ok",
+      "与依据一致": "ok",
+      "未超限值": "ok",
+      "报告内部自洽": "ok",
+      "内部自洽": "ok",
+      "在依据库中": "ok",
+      "基准日有效": "ok",
+      "编制时有效 / 基准日有效": "ok",
       "不符合": "bad",
+      "不一致": "bad",
+      "超过限值": "bad",
+      "报告内部不自洽": "bad",
+      "内部不自洽": "bad",
       "无法判定": "unk",
+      "无法核对": "unk",
+      "尚未核验": "unk",
       "超出依据范围": "out",
+      "非规范性文件，跳过": "skip",
+      "不适用": "out",
       "引用已失效": "stale",
-      "不适用": "out"
+      "基准日已废止": "stale",
+      "编制时有效 / 基准日已废止": "stale",
+      "编制时已废止 / 基准日已废止": "stale",
+      "编制时已废止 / 基准日有效": "stale"
     };
-    const CHIP_ORDER = ["符合", "不符合", "无法判定", "超出依据范围", "引用已失效"];
+    const CHIP_ORDER = [
+      "不一致", "超过限值", "内部不自洽", "报告内部不自洽", "无法核对", "无法判定", "尚未核验",
+      "编制时有效 / 基准日已废止", "引用已失效", "基准日已废止", "超出依据范围", "非规范性文件，跳过",
+      "未超限值", "与依据一致", "内部自洽", "在依据库中", "基准日有效"
+    ];
     const MAX_FILES = 30;
     const MAX_BYTES = 40 * 1024 * 1024;
 
@@ -701,8 +735,8 @@
       const rejected = [];
       incoming.forEach((file) => {
         const suffix = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
-        if (suffix !== ".doc" && suffix !== ".docx") {
-          rejected.push(`${file.name} 不是 .doc / .docx`);
+        if (suffix !== ".doc" && suffix !== ".docx" && suffix !== ".pdf") {
+          rejected.push(`${file.name} 不是 .doc / .docx / .pdf`);
           return;
         }
         if (file.size > MAX_BYTES) {
@@ -728,7 +762,96 @@
     function displayVerdict(result, item) {
       const review = (result.reviews || []).filter((row) => row.key === item.key).pop();
       if (review && review.action === "override" && review.verdict) return review.verdict;
-      return item.verdict;
+      let verdict = item.verdict || "";
+      if (item.kind === "prediction_constraint" && (verdict === "符合" || verdict === "报告内部自洽")) verdict = "内部自洽";
+      if (item.kind === "prediction_constraint" && (verdict === "不符合" || verdict === "报告内部不自洽")) verdict = "内部不自洽";
+      if ((item.kind === "quote_numeric" || item.kind === "constraint_limit") && verdict === "无法判定") verdict = "无法核对";
+      if (item.kind === "timeliness" && (verdict === "引用已失效" || verdict === "基准日已废止")) {
+        const compiled = compiledDay(result);
+        const asOf = String(result.as_of || "").slice(0, 10);
+        if (compiled && asOf && compiled < asOf) verdict = "编制时有效 / 基准日已废止";
+        else if (compiled && asOf && compiled >= asOf) verdict = "编制时已废止 / 基准日已废止";
+      }
+      if (item.kind === "timeliness" && (verdict === "超出依据范围" || verdict === "超出依据")) {
+        const own = designatedName(`${item.evidence_span || ""} ${item.question || ""}`);
+        if (own) verdict = "尚未核验";
+        else if (looksNonNormative(item)) verdict = "非规范性文件，跳过";
+      }
+      return verdict;
+    }
+    function compiledDay(result) {
+      const stored = String((result && result.compiled_on) || "").slice(0, 10);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(stored)) return stored;
+      const match = String((result && result.filename) || "").match(/(20\d{2})(\d{2})(\d{2})/);
+      if (!match) return "";
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      if (month < 1 || month > 12 || day < 1 || day > 31) return "";
+      return `${match[1]}-${match[2]}-${match[3]}`;
+    }
+    function designatedName(text) {
+      const compact = String(text || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+      if (compact.includes("GB18871")) return "GB 18871";
+      if (String(text || "").includes("生态环境法典")) return "生态环境法典";
+      return "";
+    }
+    function entrySection(item) {
+      if (item.section) return item.section;
+      const place = item.place || "";
+      const known = ["技术资料", "参考资料", "技术标准", "法规", "教材", "文件", "其他"];
+      return known.find((name) => place.includes(name)) || "未分段";
+    }
+    function looksNonNormative(item) {
+      const blob = `${item.evidence_span || ""}\n${item.place || ""}`;
+      const section = entrySection(item);
+      if (["技术资料", "教材", "参考资料"].includes(section)) return true;
+      if (/(?:GBZ?|HJ|GA|WS|JJG)\s*\/?\s*T?\s*\d/i.test(blob)) return false;
+      if (/NCRP|ICRP|UNSCEAR|教材|技术资料|培训教材/i.test(blob)) return true;
+      if (/第\s*\d+\s*号|[〔\[]\s*\d{4}|令第/.test(blob)) return false;
+      const title = String(item.evidence_span || "").replace(/[《》\s]/g, "");
+      if (/[法条例规定办法细则决定法典]$/.test(title)) return false;
+      return true;
+    }
+    function reasonText(item, verdict) {
+      if (item.reason) return item.reason;
+      if (verdict === "编制时有效 / 基准日已废止") return "编制时这部法律还有效，基准日已经废止。不是报告写错了。";
+      if (verdict === "尚未核验") {
+        const own = designatedName(item.evidence_span || "") || "该依据";
+        return `依据库中无已核验的 ${own} 条款`;
+      }
+      if (item.kind === "quote_numeric" && verdict === "无法核对") return "依据库中无已核验的 GB 18871 条款";
+      if (item.kind === "constraint_limit" && verdict === "无法核对") return "依据库中无已核验的剂量限值，不能判断约束是否超限";
+      if (verdict === "超出依据范围") return "不在已核验依据或失效映射中。下一步是人工确认要不要补进依据库。";
+      if (verdict === "非规范性文件，跳过") return "没有文号或标准号，按技术资料或教材跳过，不计入超出依据。";
+      return "";
+    }
+    function verifyLink(verdict) {
+      if (verdict === "尚未核验" || verdict === "无法核对") return `<a href="#basis">去核验</a>`;
+      return "";
+    }
+    function isFolded(verdict) {
+      return verdict === "超出依据范围" || verdict === "非规范性文件，跳过" || verdict === "在依据库中";
+    }
+    function coverageBar(result) {
+      const coverage = result.coverage || {};
+      let numericDone = 0;
+      let numericOpen = 0;
+      let inner = 0;
+      (result.findings || []).forEach((item) => {
+        const verdict = displayVerdict(result, item);
+        if (item.kind === "quote_numeric" && (verdict === "与依据一致" || verdict === "不一致")) numericDone += 1;
+        if (item.kind === "quote_numeric" && verdict === "无法核对") numericOpen += 1;
+        if (item.kind === "prediction_constraint" && verdict === "内部自洽") inner += 1;
+      });
+      const checked = typeof coverage.checked === "number" ? coverage.checked : 0;
+      const unchecked = typeof coverage.unchecked === "number" ? coverage.unchecked : 0;
+      return [
+        ["A", "条款已核查", checked],
+        ["B", "条款未核查", unchecked],
+        ["C", "数值已对照", numericDone],
+        ["D", "数值无法核对", numericOpen],
+        ["E", "内部自洽", inner]
+      ];
     }
     function verdictLine(result) {
       const counts = {};
@@ -736,9 +859,9 @@
         const verdict = displayVerdict(result, item);
         counts[verdict] = (counts[verdict] || 0) + 1;
       });
-      const parts = ["不符合", "无法判定", "超出依据范围", "引用已失效", "符合", "有效"]
-        .filter((key) => counts[key])
-        .map((key) => `${counts[key]} ${shortVerdict(key)}`);
+      const preferred = [...CHIP_ORDER];
+      Object.keys(counts).forEach((key) => { if (!preferred.includes(key)) preferred.push(key); });
+      const parts = preferred.filter((key) => counts[key]).map((key) => `${counts[key]} ${shortVerdict(key)}`);
       return parts.join(" · ") || "没有可列出的引用";
     }
     function renderFiles() {
@@ -746,7 +869,7 @@
       box.innerHTML = queue.map((item) => {
         let status = "<span class=\"hint\">待核查</span>";
         if (item.state === "parse" || item.state === "check" || item.state === "validate") status = stepHtml(item.state);
-        else if (item.state === "done" && item.result) status = `✓ 完成　${escapeHtml(verdictLine(item.result))}${item.result.reused ? " · 沿用上次" : ""}`;
+        else if (item.state === "done" && item.result) status = `✓ 完成　${escapeHtml(verdictLine(item.result))}${item.result.reused ? " · 输入未变，沿用上次" : ""}`;
         else if (item.state === "error") status = `<span class="badge bad">未完成</span> ${escapeHtml(item.error || "")}`;
         const view = item.state === "done" && item.result && item.result.ok
           ? `<button type="button" class="view" data-id="${item.id}">查看</button>`
@@ -795,7 +918,7 @@
       const item = queue.find((row) => String(row.id) === view.dataset.id);
       if (item && item.result) openResult(item.result, true);
     });
-    document.querySelector("#asOf").addEventListener("change", () => {
+    function resetFinished() {
       queue.forEach((item) => {
         if (item.state === "done" || item.state === "error") {
           item.state = "ready";
@@ -805,7 +928,9 @@
       });
       renderFiles();
       syncCheck();
-    });
+    }
+    document.querySelector("#asOf").addEventListener("change", resetFinished);
+    document.querySelector("#compiledOn").addEventListener("change", resetFinished);
     function armSteps(item) {
       clearTimeout(item.timer);
       item.state = "parse";
@@ -828,6 +953,7 @@
       syncCheck();
       const status = document.querySelector("#checkStatus");
       const day = document.querySelector("#asOf").value;
+      const compiled = document.querySelector("#compiledOn").value;
       let failed = 0;
       for (const item of batch) {
         if (!queue.includes(item)) continue;
@@ -838,6 +964,7 @@
           const data = new FormData();
           data.append("files", item.file);
           data.append("as_of", day);
+          if (compiled) data.append("compiled_on", compiled);
           const response = await fetch("/api/eia/check", { method: "POST", body: data });
           const body = await response.json();
           clearTimeout(item.timer);
@@ -941,12 +1068,13 @@
     }
     function rankFinding(item) {
       const verdict = shownVerdict(item);
-      if (verdict === "不符合") return 0;
+      if (verdict === "不符合" || verdict === "不一致" || verdict === "超过限值" || verdict === "内部不自洽" || verdict === "报告内部不自洽") return 0;
       if (needsHuman(item)) return 1;
-      if (verdict === "无法判定") return 2;
-      if (verdict === "引用已失效") return 3;
+      if (verdict === "无法判定" || verdict === "无法核对" || verdict === "尚未核验") return 2;
+      if (verdict === "引用已失效" || verdict.includes("已废止")) return 3;
       if (verdict === "超出依据范围") return 4;
-      if (verdict === "符合" || verdict === "有效") return 6;
+      if (verdict === "非规范性文件，跳过") return 7;
+      if (verdict === "符合" || verdict === "有效" || verdict === "与依据一致" || verdict === "未超限值" || verdict === "内部自洽" || verdict === "报告内部自洽" || verdict === "在依据库中" || verdict === "基准日有效") return 6;
       return 5;
     }
     function orderedFindings() {
@@ -987,23 +1115,42 @@
     }
     function selectKey(key) {
       selectedKey = key;
-      document.querySelectorAll("#cards .card").forEach((card) => card.classList.toggle("on", card.dataset.key === key));
-      const card = document.querySelector(`#cards .card[data-key="${CSS.escape(key)}"]`);
-      if (card) card.scrollIntoView({ block: "nearest" });
+      document.querySelectorAll("#cards .card, #cards tr[data-key]").forEach((node) => node.classList.toggle("on", node.dataset.key === key));
+      const card = document.querySelector(`#cards [data-key="${CSS.escape(key)}"]`);
+      if (card) {
+        const fold = card.closest("details");
+        if (fold) fold.open = true;
+        card.scrollIntoView({ block: "nearest" });
+      }
       renderPanes();
     }
     function renderResult() {
       if (!current) return;
       document.querySelector("#resultTitle").textContent = current.filename || "核查结果";
+      const bar = coverageBar(current);
+      const uncovered = current.uncovered || [];
+      const compiled = compiledDay(current);
+      const compiledHint = compiled
+        ? `编制日 ${compiled}${current.compiled_from === "form" ? "" : "（从文件名读出）"}`
+        : "";
+      document.querySelector("#resultScope").textContent = current.scope_note || "本次仅做引用核验，未对依据逐条审查";
       document.querySelector("#resultMeta").innerHTML = `
         <span>基准日 ${escapeHtml(current.as_of || "")}</span>
-        <span>依据版本 ${escapeHtml(current.basis_in_force ?? "—")} 条已核验</span>
+        ${compiledHint ? `<span>${escapeHtml(compiledHint)}</span>` : ""}
+        <span>可引用依据 ${escapeHtml(current.basis_in_force ?? 0)} 条</span>
+        <span>已核查 ${bar[0][2]} 条，未核查 ${bar[1][2]} 条</span>
         <span>result_hash <code>${escapeHtml(current.result_hash || "")}</code></span>`;
+      document.querySelector("#coverageBar").innerHTML = bar.map(([key, label, count]) =>
+        `<div><strong>${count}</strong><span>${escapeHtml(key)} ${escapeHtml(label)}</span></div>`
+      ).join("");
       const stats = current.stats || {};
       const more = current.total > current.shown ? `共 ${current.total} 条，这里列出 ${current.shown} 条。` : "";
       const rejected = current.rejected ? `另有 ${current.rejected} 条未通过引用校验，没有进入这份结果。` : "";
-      const reused = current.reused ? "与已核查的文件相同，沿用上次结果。" : "";
+      const reused = current.reused ? "报告、依据、规则和解析器都没有变，沿用上次结果。" : "";
+      const missed = uncovered.length ? `这次没有检查：${uncovered.join("、")}。` : "";
       document.querySelector("#resultExtra").textContent = [
+        missed,
+        stats.parse_note || "",
         `表 ${stats.tables ?? "—"}（顶层 ${stats.top_level_tables ?? "—"}）· 图片 ${stats.images ?? 0} 处未解析`,
         more,
         rejected,
@@ -1015,7 +1162,7 @@
         const verdict = shownVerdict(item);
         counts[verdict] = (counts[verdict] || 0) + 1;
       });
-      const labels = [...CHIP_ORDER];
+      const labels = CHIP_ORDER.filter((verdict) => counts[verdict]);
       Object.keys(counts).forEach((key) => { if (!labels.includes(key)) labels.push(key); });
       document.querySelector("#chips").innerHTML = labels.map((verdict) => {
         const on = filterVerdict === verdict ? " on" : "";
@@ -1023,16 +1170,38 @@
         return `<button type="button" class="chip${on}" data-verdict="${escapeHtml(verdict)}">${badge(style, shortVerdict(verdict))} ${counts[verdict] || 0}</button>`;
       }).join("");
       const visible = findings.filter((item) => !filterVerdict || shownVerdict(item) === filterVerdict);
-      visibleKeys = visible.map((item) => item.key);
+      const primary = visible.filter((item) => !isFolded(shownVerdict(item)));
+      const outside = visible.filter((item) => shownVerdict(item) === "超出依据范围");
+      const skipped = visible.filter((item) => shownVerdict(item) === "非规范性文件，跳过");
+      const known = visible.filter((item) => shownVerdict(item) === "在依据库中");
+      visibleKeys = [...primary, ...outside, ...skipped, ...known].map((item) => item.key);
       if (!visibleKeys.includes(selectedKey)) selectedKey = visibleKeys[0] || "";
       const cards = document.querySelector("#cards");
-      if (!visible.length) {
-        cards.innerHTML = "<p class='hint'>这一类没有结论。</p>";
-        renderPanes();
-        return;
-      }
-      cards.innerHTML = visible.map((item) => cardHtml(item)).join("");
+      const parts = primary.map((item) => cardHtml(item));
+      if (outside.length) parts.push(bundleHtml(`评价依据清单：${outside.length} 项不在依据库内`, outside, filterVerdict === "超出依据范围"));
+      if (skipped.length) parts.push(bundleHtml(`非规范性文件：${skipped.length} 项已跳过`, skipped, filterVerdict === "非规范性文件，跳过"));
+      if (known.length) parts.push(bundleHtml(`在依据库中：${known.length} 项`, known, filterVerdict === "在依据库中"));
+      cards.innerHTML = parts.join("") || "<p class='hint'>这一类没有结论。</p>";
       renderPanes();
+    }
+    function bundleHtml(title, items, open) {
+      const groups = {};
+      items.forEach((item) => {
+        const section = entrySection(item);
+        if (!groups[section]) groups[section] = [];
+        groups[section].push(item);
+      });
+      const order = ["法规", "文件", "技术标准", "其他", "技术资料", "教材", "参考资料", "未分段"];
+      const names = order.filter((name) => groups[name]).concat(Object.keys(groups).filter((name) => !order.includes(name)));
+      const body = names.map((name) => {
+        const rows = groups[name].map((item) => {
+          const verdict = shownVerdict(item);
+          const on = item.key === selectedKey ? " on" : "";
+          return `<tr class="${on.trim()}" data-key="${escapeHtml(item.key)}"><td>${escapeHtml(item.evidence_span || "")}</td><td>${escapeHtml(reasonText(item, verdict))}</td></tr>`;
+        }).join("");
+        return `<tr class="detail"><td colspan="2">${escapeHtml(name)}</td></tr>${rows}`;
+      }).join("");
+      return `<details class="fold bundle"${open ? " open" : ""}><summary>${escapeHtml(title)}</summary><table><tbody>${body}</tbody></table></details>`;
     }
     function locationLabel(item) {
       if (item.place) return item.place;
@@ -1060,13 +1229,18 @@
         : "";
       const where = locationLabel(item);
       const tip = locationTip(item);
+      const reason = reasonText(item, verdict);
+      const link = verifyLink(verdict);
+      const because = reason || link
+        ? `<p class="hint">${reason ? "原因：" + escapeHtml(reason) : ""}${reason && link ? " · " : ""}${link}</p>`
+        : "";
       let noted = "";
       if (review && review.action === "override") {
         noted = `<p class="hint">已改判为 ${escapeHtml(review.verdict)} · ${escapeHtml(review.by)}${review.note ? " · " + escapeHtml(review.note) : ""}。原结论 ${escapeHtml(item.verdict)}。</p>`;
       } else if (review && review.action === "confirm") {
         noted = `<p class="hint">已确认 · ${escapeHtml(review.by)}${review.note ? " · " + escapeHtml(review.note) : ""}</p>`;
       }
-      const options = ["符合", "不符合", "无法判定", "超出依据范围", "引用已失效", "不适用", "有效"]
+      const options = ["与依据一致", "不一致", "无法核对", "未超限值", "超过限值", "内部自洽", "内部不自洽", "尚未核验", "在依据库中", "基准日有效", "基准日已废止", "编制时有效 / 基准日已废止", "超出依据范围", "非规范性文件，跳过", "符合", "不符合", "无法判定", "不适用", "有效"]
         .map((name) => `<option${name === item.verdict ? " selected" : ""}>${name}</option>`).join("");
       const on = item.key === selectedKey ? " on" : "";
       return `<article class="card${on}" data-key="${escapeHtml(item.key)}">
@@ -1075,6 +1249,7 @@
         ${quote}
         <p class="hint">报告证据：${escapeHtml(item.evidence_span || "—")}</p>
         <p class="hint" title="${escapeHtml(tip)}">位置 ${escapeHtml(where || "—")}</p>
+        ${because}
         ${noted}
         <div class="ops">
           <button type="button" class="act" data-act="confirm">确认</button>
@@ -1110,8 +1285,8 @@
         if (willOpen) target.querySelector("input[name='by']").focus();
         return;
       }
-      if (event.target.closest("form, button, input, select")) return;
-      const card = event.target.closest(".card");
+      if (event.target.closest("form, button, input, select, a, summary")) return;
+      const card = event.target.closest(".card, tr[data-key]");
       if (card) selectKey(card.dataset.key);
     });
     document.querySelector("#cards").addEventListener("submit", async (event) => {

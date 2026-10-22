@@ -5,7 +5,7 @@ from __future__ import annotations
 from app.citation.quantities import Quantity
 from app.rules.evaluator import evaluate
 
-RULE_VERSION = "citation-1"
+RULE_VERSION = "citation-2"
 
 
 def compare_values(op: str, left: Quantity, right: Quantity) -> dict:

@@ -1,9 +1,12 @@
 import io
 import zipfile
+from datetime import date
 
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
+from app.citation.check import BasisClauseView
+from app.hashing import sha256_text
 from app.main import SessionFactory, app
 from app.models import ReviewLog
 
@@ -45,7 +48,7 @@ def test_report_upload_accepts_many_files_and_keeps_each_result(tmp_path, monkey
     assert body["items"][0]["ok"] is True
     assert body["items"][1]["ok"] is True
     assert body["items"][0]["result_hash"] != body["items"][1]["result_hash"]
-    assert body["items"][2] == {"ok": False, "filename": "说明.txt", "error": "只接受 .doc 或 .docx"}
+    assert body["items"][2] == {"ok": False, "filename": "说明.txt", "error": "只接受 .doc、.docx 或 .pdf"}
     again = client.post(
         "/api/eia/check",
         files=[("files", ("甲-副本.docx", first_doc, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))],
@@ -56,6 +59,9 @@ def test_report_upload_accepts_many_files_and_keeps_each_result(tmp_path, monkey
     assert reused["reused"] is True
     assert reused["filename"] == "甲-副本.docx"
     assert reused["result_hash"] == body["items"][0]["result_hash"]
+    assert body["items"][0]["scope_note"] == "本次仅做引用核验，未对依据逐条审查"
+    assert body["items"][0]["uncovered"] == ["屏蔽计算", "联锁", "监测", "管理制度"]
+    assert "checked" in body["items"][0]["coverage"]
     listed = client.get("/api/eia/reports")
     names = [item["filename"] for item in listed.json()["items"]]
     assert names == ["乙.docx", "甲.docx"]
@@ -145,3 +151,63 @@ def test_review_logs_override_without_touching_result_hash(tmp_path, monkeypatch
         json={"key": finding["key"], "action": "override", "by": "测试", "verdict": "不符合", "note": " "},
     )
     assert refused.status_code == 400
+
+
+def test_reupload_runs_again_when_the_basis_changes(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    holder = {"rows": []}
+    monkeypatch.setattr("app.report.api._load_clauses", lambda as_of: holder["rows"])
+    client = TestClient(app)
+    document = _docx("噪声污染防治法")
+    first = client.post(
+        "/api/eia/check",
+        files=[("files", ("甲.docx", document, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))],
+        data={"as_of": "2026-10-21"},
+    ).json()["items"][0]
+    assert first["reused"] is False
+    text = "公众年有效剂量1mSv"
+    holder["rows"] = [
+        BasisClauseView(
+            doc_id="GB18871-2002",
+            title="电离辐射防护与辐射源安全基本标准 GB18871-2002",
+            path="B.1.2",
+            text=text,
+            text_sha256=sha256_text(text),
+            effective_date=date(2003, 4, 1),
+            verified=True,
+        )
+    ]
+    second = client.post(
+        "/api/eia/check",
+        files=[("files", ("甲.docx", document, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))],
+        data={"as_of": "2026-10-21"},
+    ).json()["items"][0]
+    assert second["ok"] is True
+    assert second["reused"] is False
+    assert second["result_hash"] != first["result_hash"]
+    assert second["id"] != first["id"]
+    assert second["basis_in_force"] == 1
+
+
+def test_filename_date_shows_both_sides_of_a_repeal(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    client = TestClient(app)
+    uploaded = client.post(
+        "/api/eia/check",
+        files=[
+            (
+                "files",
+                ("20241114长庚医院.docx", _docx("环境保护法"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+            )
+        ],
+        data={"as_of": "2026-10-21"},
+    )
+    item = uploaded.json()["items"][0]
+    assert item["ok"] is True
+    assert item["compiled_on"] == "2024-11-14"
+    assert item["compiled_from"] == "filename"
+    law = next(row for row in item["findings"] if "环境保护法" in row["evidence_span"])
+    assert law["verdict"] == "编制时有效 / 基准日已废止"
+    assert "不是报告写错了" in law["reason"]
+    assert item["coverage"]["checked"] == 0
+    assert item["coverage"]["unchecked"] == 0

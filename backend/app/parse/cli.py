@@ -1,4 +1,4 @@
-"""命令行：环评报告 .doc/.docx → blocks.json。"""
+"""命令行：环评报告 .doc/.docx/.pdf → blocks.json。"""
 
 from __future__ import annotations
 
@@ -8,11 +8,15 @@ from pathlib import Path
 
 from app.parse.convert import convert_doc_to_docx
 from app.parse.docx_walk import parse_docx, write_blocks
+from app.parse.pdf_text import parse_pdf
 
 
 def parse_report(source: Path, work_dir: Path | None = None):
     source = source.resolve()
-    if source.suffix.lower() == ".docx":
+    suffix = source.suffix.lower()
+    if suffix == ".pdf":
+        return parse_pdf(source)
+    if suffix == ".docx":
         return parse_docx(source)
     if work_dir is None:
         # 转换结果放在源文件旁边。系统临时目录上 LibreOffice 有时写不进 docx。
@@ -25,7 +29,7 @@ def parse_report(source: Path, work_dir: Path | None = None):
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="把环评报告解析成 blocks.json")
-    parser.add_argument("source", type=Path, help=".doc 或 .docx")
+    parser.add_argument("source", type=Path, help=".doc、.docx 或带文字层的 .pdf")
     parser.add_argument("-o", "--output", type=Path, required=True, help="blocks.json 路径")
     parser.add_argument("--work-dir", type=Path, default=None, help="存放转换后的 docx")
     args = parser.parse_args(argv)

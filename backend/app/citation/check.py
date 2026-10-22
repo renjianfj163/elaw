@@ -8,17 +8,29 @@ from datetime import date
 from pydantic import BaseModel, Field
 
 from app.citation.gate import accept_quote, citation_result_hash
-from app.citation.numeric import compare_values, same_subject, verdict_of
+from app.citation.limits import DoseLimit, load_verified_limits, population_name, quantity_key
+from app.citation.numeric import RULE_VERSION, compare_values
 from app.citation.place import describe_place
 from app.citation.quantities import Quantity, extract_quantities, roles_of
+from app.parse.docx_walk import PARSER_VERSION
 from app.citation.timeliness import (
     BibliographyEntry,
     RepealRow,
     evaluation_basis_entries,
+    designated_basis,
+    is_non_normative,
     load_repeal_map,
     matching_repeal,
 )
-from app.hashing import sha256_text
+from app.hashing import sha256_text, stable_hash
+from app.verify.citation import quote_matches
+
+SCOPE_NOTE = "本次仅做引用核验，未对依据逐条审查"
+UNCOVERED = ["屏蔽计算", "联锁", "监测", "管理制度"]
+_CHECKED = {"与依据一致", "不一致", "未超限值", "超过限值"}
+_QUOTE_VERDICT = {"true": "与依据一致", "false": "不一致", "unknown": "无法核对"}
+_LIMIT_VERDICT = {"true": "未超限值", "false": "超过限值", "unknown": "无法核对"}
+_PREDICTION_VERDICT = {"true": "内部自洽", "false": "内部不自洽", "unknown": "无法核对"}
 
 _CODE = re.compile(
     r"(?:GB|HJ|GBZ)\s*/?\s*T?\s*\d+(?:\.\d+)?\s*[-—]\s*\d{4}",
@@ -54,6 +66,8 @@ class Finding(BaseModel):
     basis_doc_id: str | None = None
     basis_path: str | None = None
     source_label: str = ""
+    section: str = ""
+    reason: str = ""
     replaced_by: str | None = None
     trace: list = Field(default_factory=list)
     as_of: str
@@ -69,10 +83,63 @@ class CheckOutput(BaseModel):
     findings: list[Finding]
     rejected: list[RejectedFinding]
     result_hash: str
+    scope_note: str = SCOPE_NOTE
+    coverage: dict = Field(default_factory=dict)
+    uncovered: list[str] = Field(default_factory=lambda: list(UNCOVERED))
 
 
-def check_report(parsed, *, as_of: date, clauses: list[BasisClauseView], repeal_rows: list[RepealRow] | None = None) -> CheckOutput:
+def review_input_key(
+    *,
+    report_sha: str,
+    basis_sha: str,
+    repeal_sha: str,
+    limits_sha: str,
+    as_of: date,
+    compiled_on: date | None,
+    parser_version: str = PARSER_VERSION,
+) -> str:
+    return stable_hash(
+        {
+            "report_sha256": report_sha,
+            "basis_sha256": basis_sha,
+            "repeal_sha256": repeal_sha,
+            "limits_sha256": limits_sha,
+            "rule_version": RULE_VERSION,
+            "parser_version": parser_version,
+            "as_of": as_of.isoformat(),
+            "compiled_on": compiled_on.isoformat() if compiled_on else "",
+        }
+    )
+
+
+def admissible_clauses(clauses: list[BasisClauseView], as_of: date, repeal_rows: list[RepealRow]) -> list[BasisClauseView]:
+    kept = []
+    for clause in clauses:
+        if not _in_force(clause, as_of):
+            continue
+        repealed = matching_repeal(clause.title, repeal_rows)
+        if repealed is not None and as_of >= repealed.repealed_on:
+            continue
+        kept.append(clause)
+    return kept
+
+
+def basis_fingerprint(clauses: list[BasisClauseView]) -> str:
+    return sha256_text("\n".join(sorted(clause.text_sha256 for clause in clauses)))
+
+
+def check_report(
+    parsed,
+    *,
+    as_of: date,
+    clauses: list[BasisClauseView],
+    repeal_rows: list[RepealRow] | None = None,
+    dose_limits: list[DoseLimit] | None = None,
+    compiled_on: date | None = None,
+) -> CheckOutput:
     rows = repeal_rows if repeal_rows is not None else load_repeal_map()
+    limits = dose_limits if dose_limits is not None else load_verified_limits()
+    clauses = admissible_clauses(clauses, as_of, rows)
     report_text = parsed.full_text
     accepted: list[Finding] = []
     rejected: list[RejectedFinding] = []
@@ -96,9 +163,9 @@ def check_report(parsed, *, as_of: date, clauses: list[BasisClauseView], repeal_
         accepted.append(finding)
 
     for entry in evaluation_basis_entries(parsed.blocks):
-        keep(_timeliness(entry, rows, clauses, as_of), source_text="", in_force=True, require_quote=False)
+        keep(_timeliness(entry, rows, clauses, as_of, compiled_on), source_text="", in_force=True, require_quote=False)
 
-    for finding, clause in _limit_quotes(parsed.blocks, clauses, as_of, report_text):
+    for finding, clause in _limit_quotes(parsed.blocks, clauses, limits, as_of, report_text):
         if clause is None:
             keep(finding, source_text="", in_force=True, require_quote=False)
             continue
@@ -109,7 +176,7 @@ def check_report(parsed, *, as_of: date, clauses: list[BasisClauseView], repeal_
             require_quote=True,
         )
 
-    for finding, clause in _constraints(parsed.blocks, clauses, as_of):
+    for finding, clause in _constraints(parsed.blocks, clauses, limits, as_of):
         if clause is None:
             keep(finding, source_text="", in_force=True, require_quote=False)
             continue
@@ -124,6 +191,7 @@ def check_report(parsed, *, as_of: date, clauses: list[BasisClauseView], repeal_
     basis_sha = _basis_sha(clauses, as_of)
     report_sha = sha256_text(report_text)
     placed = [_with_place(item, parsed.blocks) for item in accepted]
+    parser_version = getattr(parsed, "parser_version", None) or PARSER_VERSION
     return CheckOutput(
         findings=placed,
         rejected=rejected,
@@ -132,7 +200,9 @@ def check_report(parsed, *, as_of: date, clauses: list[BasisClauseView], repeal_
             basis_sha=basis_sha,
             as_of=as_of,
             findings=payloads,
+            parser_version=parser_version,
         ),
+        coverage=_coverage(clauses, placed),
     )
 
 
@@ -143,19 +213,38 @@ def _with_place(finding: Finding, blocks) -> Finding:
     return finding.model_copy(update={"place": place})
 
 
-def _timeliness(entry: BibliographyEntry, rows: list[RepealRow], clauses: list[BasisClauseView], as_of: date) -> Finding:
+def _timeliness(
+    entry: BibliographyEntry,
+    rows: list[RepealRow],
+    clauses: list[BasisClauseView],
+    as_of: date,
+    compiled_on: date | None,
+) -> Finding:
     matched = matching_repeal(entry.name, rows)
     replaced_by = None
+    reason = ""
+    own = designated_basis(entry.text) or designated_basis(entry.name)
     if matched is not None:
-        verdict = "引用已失效" if as_of >= matched.repealed_on else "有效"
+        verdict = _timing_verdict(matched.repealed_on, as_of, compiled_on)
         replaced_by = matched.replaced_by or None
-        question = "评价依据所列法律在基准日是否仍有效"
+        question = "评价依据所列法律在编制日和基准日是否仍有效" if compiled_on else "评价依据所列法律在基准日是否仍有效"
+        if compiled_on and as_of >= matched.repealed_on and compiled_on < matched.repealed_on:
+            reason = "编制时这部法律还有效，基准日已经废止。不是报告写错了。"
     elif _basis_title_in_force(entry.text, clauses, as_of):
-        verdict = "有效"
+        verdict = "在依据库中"
         question = "评价依据所列文件是否属于已核验且已施行的依据"
+    elif own:
+        verdict = "尚未核验"
+        question = f"{own} 是否已有核验过的条款"
+        reason = f"依据库中无已核验的 {own} 条款"
+    elif is_non_normative(entry.name, entry.text, entry.section):
+        verdict = "非规范性文件，跳过"
+        question = "评价依据里的这条是不是规范性文件"
+        reason = "没有文号或标准号，按技术资料或教材跳过，不计入超出依据。"
     else:
         verdict = "超出依据范围"
         question = "评价依据所列文件是否属于依据库或失效映射"
+        reason = "不在已核验依据或失效映射中。下一步是人工确认要不要补进依据库。"
     return Finding(
         kind="timeliness",
         question=question,
@@ -164,60 +253,60 @@ def _timeliness(entry: BibliographyEntry, rows: list[RepealRow], clauses: list[B
         char_start=entry.char_start,
         char_end=entry.char_end,
         source_label="失效映射" if matched else "",
+        section=entry.section,
+        reason=reason,
         replaced_by=replaced_by,
         as_of=as_of.isoformat(),
     )
 
 
-def _limit_quotes(blocks, clauses, as_of: date, report_text: str):
+def _limit_quotes(blocks, clauses, limits, as_of: date, report_text: str):
     caption_at = _caption_index(blocks, "表7-2")
     if caption_at is None:
         return []
     caption = blocks[caption_at].text
-    basis = [clause for clause in clauses if _same_standard(caption, clause) and _in_force(clause, as_of)]
-    basis_quantities = _clause_quantities(basis)
-    report_quantities = _table_quantities(blocks, caption_at, report_text)
+    linked = _linked_limits(limits, clauses, caption, as_of)
     paired = []
-    for item in report_quantities:
-        matches = [other for other in basis_quantities if same_subject(item["quantity"], other["quantity"])]
+    for item in _table_quantities(blocks, caption_at, report_text):
+        key = quantity_key(item["quantity"])
+        matches = [row for row in linked if key is not None and _limit_key(row[0]) == key]
         if len(matches) != 1:
             paired.append(
                 (
                     _open_finding(
                         "quote_numeric",
-                        "引用的剂量数值是否与依据原文一致",
-                        "无法判定",
+                        "引用的剂量数值是否与已核验限值表一致",
+                        "无法核对",
                         item,
                         as_of,
+                        reason=_unmatched_quote_reason(caption, linked, key, len(matches)),
                     ),
                     None,
                 )
             )
             continue
-        chosen = matches[0]
-        compared = compare_values("==", item["quantity"], chosen["quantity"])
+        limit, clause = matches[0]
+        compared = compare_values("==", item["quantity"], _as_quantity(limit))
         paired.append(
             (
                 _measured_finding(
                     "quote_numeric",
-                    "引用的剂量数值是否与依据原文一致",
-                    verdict_of(compared["result"]),
+                    "引用的剂量数值是否与已核验限值表一致",
+                    _QUOTE_VERDICT[compared["result"]],
                     item,
-                    chosen,
+                    {"quantity": _as_quantity(limit), "clause": clause, "quote": limit.quote},
                     compared["trace"],
-                    "依据原文",
+                    "已核验限值表",
                     as_of,
                 ),
-                chosen["clause"],
+                clause,
             )
         )
     return paired
 
 
-def _constraints(blocks, clauses, as_of: date):
-    limits = _clause_quantities(
-        [clause for clause in clauses if _in_force(clause, as_of) and "约束" not in clause.text]
-    )
+def _constraints(blocks, clauses, limits, as_of: date):
+    ceilings = _ceilings(limits, clauses, as_of)
     paired = []
     for block in blocks:
         text = block.text or ""
@@ -227,10 +316,8 @@ def _constraints(blocks, clauses, as_of: date):
             if not clause or _mentions_hj(clause) or not _assigns_constraint(clause, quantity):
                 continue
             roles = roles_of(clause)
-            population = {role for role in roles if role in {"工作人员", "职业", "公众"}}
+            population = population_name(roles)
             organs = {role for role in roles if role in {"眼晶体", "皮肤", "四肢"}}
-            if len(population) != 1 or organs or quantity.unit != "mSv/a":
-                continue
             located = {
                 "quantity": quantity,
                 "text": clause,
@@ -238,38 +325,42 @@ def _constraints(blocks, clauses, as_of: date):
                 "char_end": block.char_start + end,
                 "clause": None,
             }
-            matches = [
-                other
-                for other in limits
-                if other["quantity"].unit == quantity.unit
-                and other["quantity"].population & population
-                and not other["quantity"].organs
-            ]
-            if not matches:
+            if population is None or organs or quantity.unit != "mSv/a":
+                continue
+            chosen = ceilings.get(population)
+            question = "合理性检查：剂量约束是否不超过已核验的最低限值"
+            if chosen is None:
                 paired.append(
                     (
-                        _open_finding("constraint_limit", "剂量约束是否不超过依据限值", "无法判定", located, as_of),
+                        _open_finding(
+                            "constraint_limit",
+                            question,
+                            "无法核对",
+                            located,
+                            as_of,
+                            reason="依据库中无已核验的剂量限值，不能判断约束是否超限",
+                        ),
                         None,
                     )
                 )
                 continue
-            for chosen in matches:
-                compared = compare_values("<=", quantity, chosen["quantity"])
-                paired.append(
-                    (
-                        _measured_finding(
-                            "constraint_limit",
-                            "剂量约束是否不超过依据限值",
-                            verdict_of(compared["result"]),
-                            located,
-                            chosen,
-                            compared["trace"],
-                            "依据原文",
-                            as_of,
-                        ),
-                        chosen["clause"],
-                    )
+            limit, basis = chosen
+            compared = compare_values("<=", quantity, _as_quantity(limit))
+            paired.append(
+                (
+                    _measured_finding(
+                        "constraint_limit",
+                        question,
+                        _LIMIT_VERDICT[compared["result"]],
+                        located,
+                        {"quantity": _as_quantity(limit), "clause": basis, "quote": limit.quote},
+                        compared["trace"],
+                        "合理性检查",
+                        as_of,
+                    ),
+                    basis,
                 )
+            )
     return paired
 
 
@@ -326,7 +417,7 @@ def _predictions(blocks, as_of: date):
             finding = Finding(
                 kind="prediction_constraint",
                 question="预测值是否不超过报告自设约束",
-                verdict=verdict_of(compared["result"]),
+                verdict=_PREDICTION_VERDICT[compared["result"]],
                 evidence_span=evidence,
                 char_start=evidence_start,
                 char_end=evidence_start + len(evidence),
@@ -401,7 +492,7 @@ def _locate(block, quantity: Quantity, report_text: str) -> dict:
     return {"quantity": quantity, "text": window, "char_start": start, "char_end": end, "clause": None}
 
 
-def _open_finding(kind: str, question: str, verdict: str, located: dict, as_of: date) -> Finding:
+def _open_finding(kind: str, question: str, verdict: str, located: dict, as_of: date, reason: str = "") -> Finding:
     return Finding(
         kind=kind,
         question=question,
@@ -409,8 +500,20 @@ def _open_finding(kind: str, question: str, verdict: str, located: dict, as_of: 
         evidence_span=located["text"],
         char_start=located["char_start"],
         char_end=located["char_end"],
+        reason=reason,
         as_of=as_of.isoformat(),
     )
+
+
+def _unmatched_quote_reason(caption: str, linked, key, count: int) -> str:
+    if not linked:
+        named = designated_basis(caption) or "GB 18871"
+        return f"依据库中无已核验的 {named} 条款"
+    if key is None:
+        return "报告里这个数字没有分清对象、器官或时段"
+    if count > 1:
+        return "已核验限值表里对上了不止一行"
+    return "已核验限值表里没有同一对象的一行"
 
 
 def _measured_finding(kind, question, verdict, located, chosen, trace, source_label, as_of: date) -> Finding:
@@ -422,7 +525,7 @@ def _measured_finding(kind, question, verdict, located, chosen, trace, source_la
         evidence_span=located["text"],
         char_start=located["char_start"],
         char_end=located["char_end"],
-        quote=chosen["quantity"].window,
+        quote=chosen.get("quote") or chosen["quantity"].window,
         basis_doc_id=clause.doc_id,
         basis_path=clause.path,
         source_label=source_label,
@@ -465,6 +568,65 @@ def _in_force(clause: BasisClauseView, as_of: date) -> bool:
         and clause.effective_date <= as_of
         and sha256_text(clause.text) == clause.text_sha256
     )
+
+
+def _timing_verdict(repealed_on: date, as_of: date, compiled_on: date | None) -> str:
+    as_of_status = "基准日已废止" if as_of >= repealed_on else "基准日有效"
+    if compiled_on is None:
+        return as_of_status
+    compiled_status = "编制时有效" if compiled_on < repealed_on else "编制时已废止"
+    return f"{compiled_status} / {as_of_status}"
+
+
+def _linked_limits(limits: list[DoseLimit], clauses, caption: str, as_of: date):
+    codes = _codes(caption)
+    linked = []
+    for limit in limits:
+        if not limit.verified:
+            continue
+        clause = next(
+            (
+                item
+                for item in clauses
+                if item.doc_id == limit.doc_id and item.path == limit.clause_path and _in_force(item, as_of)
+            ),
+            None,
+        )
+        if clause is None or not quote_matches(limit.quote, clause.text):
+            continue
+        if codes and not (_codes(f"{limit.doc_id} {clause.title}") & codes):
+            continue
+        linked.append((limit, clause))
+    return linked
+
+
+def _limit_key(limit: DoseLimit) -> tuple[str, str, str, str]:
+    return (limit.population, limit.organ, limit.period, limit.unit)
+
+
+def _as_quantity(limit: DoseLimit) -> Quantity:
+    return Quantity(limit.value, limit.unit, limit.quote, frozenset(), limit.quote, 0, len(limit.quote))
+
+
+def _ceilings(limits: list[DoseLimit], clauses, as_of: date) -> dict[str, tuple[DoseLimit, BasisClauseView]]:
+    chosen: dict[str, tuple[DoseLimit, BasisClauseView]] = {}
+    for limit, clause in _linked_limits(limits, clauses, "", as_of):
+        if limit.organ or limit.unit != "mSv/a":
+            continue
+        current = chosen.get(limit.population)
+        if current is None or limit.value < current[0].value:
+            chosen[limit.population] = (limit, clause)
+    return chosen
+
+
+def _coverage(clauses: list[BasisClauseView], findings: list[Finding]) -> dict:
+    present = {(clause.doc_id, clause.path) for clause in clauses}
+    used = {
+        (item.basis_doc_id, item.basis_path)
+        for item in findings
+        if item.basis_path and item.verdict in _CHECKED and (item.basis_doc_id, item.basis_path) in present
+    }
+    return {"in_force": len(present), "checked": len(used), "unchecked": len(present - used)}
 
 
 def _basis_sha(clauses: list[BasisClauseView], as_of: date) -> str:
