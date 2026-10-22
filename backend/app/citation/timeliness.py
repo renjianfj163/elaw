@@ -83,17 +83,20 @@ def evaluation_basis_entries(blocks) -> list[BibliographyEntry]:
                 break
             continue
         started = True
-        text = (block.text or "").strip()
+        raw = block.text or ""
+        leading = len(raw) - len(raw.lstrip())
+        text = raw.strip()
         if not text or text in _HEADERS:
             continue
         books = _BOOK.findall(text)
         name = books[0].strip() if books else text
+        start = block.char_start + leading
         entries.append(
             BibliographyEntry(
                 name=name,
-                text=block.text,
-                char_start=block.char_start,
-                char_end=block.char_end,
+                text=text,
+                char_start=start,
+                char_end=start + len(text),
             )
         )
     return entries

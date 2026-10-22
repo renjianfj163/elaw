@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from app.citation.gate import accept_quote, citation_result_hash
 from app.citation.numeric import compare_values, same_subject, verdict_of
-from app.citation.quantities import Quantity, extract_quantities, roles_of, sentence_around
+from app.citation.quantities import Quantity, extract_quantities, roles_of
 from app.citation.timeliness import (
     BibliographyEntry,
     RepealRow,
@@ -138,7 +138,7 @@ def _timeliness(entry: BibliographyEntry, rows: list[RepealRow], clauses: list[B
         verdict = "引用已失效" if as_of >= matched.repealed_on else "有效"
         replaced_by = matched.replaced_by or None
         question = "评价依据所列法律在基准日是否仍有效"
-    elif _basis_title_in_force(entry.name, clauses, as_of):
+    elif _basis_title_in_force(entry.text, clauses, as_of):
         verdict = "有效"
         question = "评价依据所列文件是否属于已核验且已施行的依据"
     else:
@@ -208,18 +208,20 @@ def _constraints(blocks, clauses, as_of: date):
     )
     paired = []
     for block in blocks:
-        if "HJ" in (block.text or ""):
-            continue
-        for quantity in extract_quantities(block.text or ""):
-            sentence, start, end = sentence_around(block.text or "", quantity)
-            roles = roles_of(sentence)
+        text = block.text or ""
+        for quantity in extract_quantities(text):
+            # 只认写下约束值的分句。后文「满足约束」「低于约束目标值」是在用这个数。
+            clause, start, end = _constraint_clause(text, quantity)
+            if not clause or _mentions_hj(clause) or not _assigns_constraint(clause, quantity):
+                continue
+            roles = roles_of(clause)
             population = {role for role in roles if role in {"工作人员", "职业", "公众"}}
             organs = {role for role in roles if role in {"眼晶体", "皮肤", "四肢"}}
-            if "约束" not in roles or len(population) != 1 or organs or quantity.unit != "mSv/a":
+            if len(population) != 1 or organs or quantity.unit != "mSv/a":
                 continue
             located = {
                 "quantity": quantity,
-                "text": sentence,
+                "text": clause,
                 "char_start": block.char_start + start,
                 "char_end": block.char_start + end,
                 "clause": None,
@@ -257,6 +259,37 @@ def _constraints(blocks, clauses, as_of: date):
                     )
                 )
     return paired
+
+
+_CLAUSE_BREAKS = "。；;\n"
+
+
+def _constraint_clause(text: str, quantity: Quantity) -> tuple[str, int, int]:
+    start = max((text.rfind(char, 0, quantity.local_start) for char in _CLAUSE_BREAKS), default=-1) + 1
+    ends = [text.find(char, quantity.local_end) for char in _CLAUSE_BREAKS]
+    ends = [pos for pos in ends if pos >= 0]
+    end = min(ends) if ends else len(text)
+    clause = text[start:end]
+    lead = len(clause) - len(clause.lstrip())
+    trimmed = clause.strip()
+    if not trimmed:
+        return "", start, start
+    rel = start + lead
+    return trimmed, rel, rel + len(trimmed)
+
+
+def _assigns_constraint(clause: str, quantity: Quantity) -> bool:
+    raw = re.escape(quantity.raw)
+    patterns = (
+        rf"约束值取\s*{raw}",
+        rf"取\s*{raw}.{{0,40}}作为.{{0,24}}约束",
+        rf"约束(?:目标)?值\s*(?:为|是|：|:)\s*{raw}",
+    )
+    return any(re.search(pattern, clause) for pattern in patterns)
+
+
+def _mentions_hj(text: str) -> bool:
+    return any(code.startswith("HJ") for code in _codes(text))
 
 
 def _predictions(blocks, as_of: date):

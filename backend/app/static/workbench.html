@@ -140,18 +140,49 @@
     .history {
       width: 100%;
       display: grid;
-      grid-template-columns: minmax(0, 1.4fr) auto minmax(0, 1fr);
-      gap: 8px 16px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px 12px;
+      align-items: center;
       text-align: left;
       background: var(--card);
       margin: 8px 0;
+      padding: 8px 8px 8px 14px;
       border-radius: 10px;
+    }
+    .history-open {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) auto minmax(0, 1fr);
+      gap: 8px 16px;
+      align-items: center;
+      width: 100%;
+      min-width: 0;
+      border: 0;
+      padding: 0;
+      text-align: left;
+      background: transparent;
     }
     .history .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     table { width: 100%; border-collapse: collapse; }
     th, td { border-bottom: 1px solid var(--line); text-align: left; padding: 8px 6px; vertical-align: top; }
     th { color: var(--muted); font-weight: 600; font-size: 14px; }
     .table-wrap { overflow-x: auto; }
+    details.fold { margin-top: 8px; border-top: 1px solid var(--line); }
+    details.fold > summary {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      padding: 12px 2px;
+      list-style: none;
+    }
+    details.fold > summary::-webkit-details-marker { display: none; }
+    details.fold > summary::before {
+      content: "▸";
+      color: var(--muted);
+      width: 1em;
+    }
+    details.fold[open] > summary::before { content: "▾"; }
+    details.fold > summary .count { color: var(--muted); font-weight: 400; }
     tr.detail td { background: var(--soft); color: var(--muted); }
     .badge {
       display: inline-flex;
@@ -245,7 +276,7 @@
     dialog::backdrop { background: rgba(20, 26, 23, 0.45); }
     dialog .grid-2 input, dialog .grid-2 select { width: 100%; }
     @media (max-width: 800px) {
-      .file, .history, .split, .grid-2 { grid-template-columns: 1fr; }
+      .file, .history, .history-open, .split, .grid-2 { grid-template-columns: 1fr; }
       .top { flex-wrap: wrap; }
       .top-actions { margin-left: 0; }
     }
@@ -549,6 +580,51 @@
       syncCheck();
       renderBasisTable();
     }
+    const basisFoldOpen = { "待确认": false, "未找到": false };
+    function basisRowHtml(row, index) {
+      const report = row.report;
+      const status = basisStatus(report);
+      const name = report ? report.seed_name : row.seed.name;
+      const source = report ? report.source : (row.seed.source || "");
+      const level = row.seed ? row.seed.level : "";
+      const stateNote = status.label === "已确认" && report.version_status ? ` · ${escapeHtml(report.version_status)}` : "";
+      const who = report && report.verified_by ? `<div class="hint">${escapeHtml(report.verified_by)}</div>` : "";
+      const action = !report || !report.version_id
+        ? "—"
+        : status.label === "已确认"
+          ? (who || `<div class="hint">${escapeHtml(report.version_status || "已核对")}</div>`)
+          : `<button type="button" class="confirm" data-id="${escapeHtml(report.version_id)}" data-name="${escapeHtml(name)}" data-pub="${escapeHtml(report.publish_date || "")}" data-eff="${escapeHtml(report.effective_date || "")}">对照后确认</button>`;
+      const near = ((report && report.detail && report.detail.near_misses) || []).slice(0, 3).join("、");
+      const note = report && report.detail && report.detail.note ? report.detail.note : "";
+      const seedNote = row.seed && row.seed.note ? row.seed.note : "";
+      return `<tr>
+        <td>${escapeHtml(name)}<div class="hint">${escapeHtml([level, source].filter(Boolean).join(" · "))}</div></td>
+        <td>${badge(status.style, status.label)}${stateNote}</td>
+        <td>${escapeHtml((report && report.publish_date) || "—")}<br>${escapeHtml((report && report.effective_date) || "—")}</td>
+        <td>${action}<div><button type="button" class="text more" data-index="${index}">详情</button></div></td>
+      </tr>
+      <tr class="detail" data-detail="${index}" hidden><td colspan="4">
+        <p>原始状态码：${escapeHtml((report && report.raw_status) || "没有")}</p>
+        <p>全文：${escapeHtml((report && report.fulltext) || "—")}</p>
+        <p>检索结果：${escapeHtml((report && report.outcome) || "还没有核验")}</p>
+        ${report && report.superseded_note ? `<p>${escapeHtml(report.superseded_note)}</p>` : ""}
+        ${note ? `<p>${escapeHtml(note)}</p>` : ""}
+        ${near ? `<p>相近名称：${escapeHtml(near)}</p>` : ""}
+        ${seedNote ? `<p>${escapeHtml(seedNote)}</p>` : ""}
+      </td></tr>`;
+    }
+    function basisTable(items) {
+      const body = items.map((item) => basisRowHtml(item.row, item.index)).join("");
+      return `<table><thead><tr><th>名称</th><th>状态</th><th>公布 / 施行</th><th></th></tr></thead><tbody>${body}</tbody></table>`;
+    }
+    function basisFold(label, style, items) {
+      if (!items.length) return "";
+      const open = basisFoldOpen[label] ? " open" : "";
+      return `<details class="fold" data-fold="${escapeHtml(label)}"${open}>
+        <summary>${badge(style, label)}<span class="count">${items.length} 项</span></summary>
+        ${basisTable(items)}
+      </details>`;
+    }
     function renderBasisTable() {
       const box = document.querySelector("#reports");
       if (!basisRows.length) {
@@ -557,39 +633,17 @@
       }
       const rank = { "已确认": 0, "待确认": 1, "未找到": 2 };
       const rows = [...basisRows].sort((a, b) => rank[basisStatus(a.report).label] - rank[basisStatus(b.report).label]);
-      const body = rows.map((row, index) => {
-        const report = row.report;
-        const status = basisStatus(report);
-        const name = report ? report.seed_name : row.seed.name;
-        const source = report ? report.source : (row.seed.source || "");
-        const level = row.seed ? row.seed.level : "";
-        const stateNote = status.label === "已确认" && report.version_status ? ` · ${escapeHtml(report.version_status)}` : "";
-        const who = report && report.verified_by ? `<div class="hint">${escapeHtml(report.verified_by)}</div>` : "";
-        const action = !report || !report.version_id
-          ? "—"
-          : status.label === "已确认"
-            ? (who || `<div class="hint">${escapeHtml(report.version_status || "已核对")}</div>`)
-            : `<button type="button" class="confirm" data-id="${escapeHtml(report.version_id)}" data-name="${escapeHtml(name)}" data-pub="${escapeHtml(report.publish_date || "")}" data-eff="${escapeHtml(report.effective_date || "")}">对照后确认</button>`;
-        const near = ((report && report.detail && report.detail.near_misses) || []).slice(0, 3).join("、");
-        const note = report && report.detail && report.detail.note ? report.detail.note : "";
-        const seedNote = row.seed && row.seed.note ? row.seed.note : "";
-        return `<tr>
-          <td>${escapeHtml(name)}<div class="hint">${escapeHtml([level, source].filter(Boolean).join(" · "))}</div></td>
-          <td>${badge(status.style, status.label)}${stateNote}</td>
-          <td>${escapeHtml((report && report.publish_date) || "—")}<br>${escapeHtml((report && report.effective_date) || "—")}</td>
-          <td>${action}<div><button type="button" class="text more" data-index="${index}">详情</button></div></td>
-        </tr>
-        <tr class="detail" data-detail="${index}" hidden><td colspan="4">
-          <p>原始状态码：${escapeHtml((report && report.raw_status) || "没有")}</p>
-          <p>全文：${escapeHtml((report && report.fulltext) || "—")}</p>
-          <p>检索结果：${escapeHtml((report && report.outcome) || "还没有核验")}</p>
-          ${report && report.superseded_note ? `<p>${escapeHtml(report.superseded_note)}</p>` : ""}
-          ${note ? `<p>${escapeHtml(note)}</p>` : ""}
-          ${near ? `<p>相近名称：${escapeHtml(near)}</p>` : ""}
-          ${seedNote ? `<p>${escapeHtml(seedNote)}</p>` : ""}
-        </td></tr>`;
-      }).join("");
-      box.innerHTML = `<table><thead><tr><th>名称</th><th>状态</th><th>公布 / 施行</th><th></th></tr></thead><tbody>${body}</tbody></table>`;
+      const groups = { "已确认": [], "待确认": [], "未找到": [] };
+      rows.forEach((row, index) => {
+        const label = basisStatus(row.report).label;
+        (groups[label] || groups["未找到"]).push({ row, index });
+      });
+      const confirmed = groups["已确认"].length
+        ? basisTable(groups["已确认"])
+        : "<p class='hint'>还没有已确认的依据。</p>";
+      box.innerHTML = confirmed
+        + basisFold("待确认", "unk", groups["待确认"])
+        + basisFold("未找到", "out", groups["未找到"]);
     }
     async function loadBasis() {
       try {
@@ -613,6 +667,10 @@
       paintBasis();
     }
 
+    document.querySelector("#reports").addEventListener("toggle", (event) => {
+      const fold = event.target;
+      if (fold && fold.dataset && fold.dataset.fold) basisFoldOpen[fold.dataset.fold] = fold.open;
+    }, true);
     document.querySelector("#reports").addEventListener("click", (event) => {
       const more = event.target.closest(".more");
       if (more) {
@@ -812,11 +870,14 @@
         box.innerHTML = "<p class='hint'>上传一份报告，核查完成后会列在这里。</p>";
         return;
       }
-      box.innerHTML = historyItems.map((item) => `<button type="button" class="history" data-id="${escapeHtml(item.id)}">
-        <span class="name">${escapeHtml(item.filename)}</span>
-        <span>${escapeHtml(formatWhen(item.created_at))}</span>
-        <span>${escapeHtml(verdictLine(item))}</span>
-      </button>`).join("");
+      box.innerHTML = historyItems.map((item) => `<div class="history">
+        <button type="button" class="history-open" data-id="${escapeHtml(item.id)}">
+          <span class="name">${escapeHtml(item.filename)}</span>
+          <span>${escapeHtml(formatWhen(item.created_at))}</span>
+          <span>${escapeHtml(verdictLine(item))}</span>
+        </button>
+        <button type="button" class="text danger" data-act="delete" data-id="${escapeHtml(item.id)}">删除</button>
+      </div>`).join("");
     }
     async function loadChecked() {
       const box = document.querySelector("#checkedList");
@@ -833,8 +894,32 @@
         box.innerHTML = "<p class='hint'>已核查列表没有载入。</p>";
       }
     }
-    document.querySelector("#checkedList").addEventListener("click", (event) => {
-      const button = event.target.closest(".history");
+    document.querySelector("#checkedList").addEventListener("click", async (event) => {
+      const remove = event.target.closest("[data-act='delete']");
+      if (remove) {
+        const id = remove.dataset.id;
+        const item = historyItems.find((row) => row.id === id);
+        const name = item ? item.filename : "这份报告";
+        if (!window.confirm(`删除「${name}」的核查结果？同一份文件可以重新核查。`)) return;
+        remove.disabled = true;
+        try {
+          const response = await fetch(`/api/eia/reports/${encodeURIComponent(id)}`, { method: "DELETE" });
+          if (!response.ok) {
+            remove.disabled = false;
+            document.querySelector("#checkStatus").textContent = "这份核查结果没有删掉。";
+            return;
+          }
+        } catch (error) {
+          remove.disabled = false;
+          document.querySelector("#checkStatus").textContent = "这份核查结果没有删掉。";
+          return;
+        }
+        if (current && current.id === id) current = null;
+        if (parseHash().id === id) location.hash = "check";
+        await loadChecked();
+        return;
+      }
+      const button = event.target.closest(".history-open");
       if (!button) return;
       const item = historyItems.find((row) => row.id === button.dataset.id);
       if (item) openResult(item, true);

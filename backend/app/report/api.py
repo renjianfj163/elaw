@@ -6,7 +6,7 @@ from datetime import date
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pathlib import Path
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.basis.store import evaluable_clauses
 from app.citation.check import BasisClauseView, check_report
@@ -45,6 +45,31 @@ def list_reports():
         return {"disclaimer": DISCLAIMER, "items": [_public(row, grouped.get(row.id, [])) for row in rows]}
     finally:
         db.close()
+
+
+@router.delete("/reports/{report_id}")
+def delete_report(report_id: str):
+    """删掉一份已核查结果。同一文件、同一基准日可以重新核查。"""
+    from app.main import SessionFactory
+
+    db = SessionFactory()
+    try:
+        row = db.get(EiaReport, report_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="找不到这份核查结果")
+        digest = row.file_sha256
+        db.execute(
+            delete(ReviewLog).where(
+                ReviewLog.target_type == "eia_finding",
+                ReviewLog.target_id == row.id,
+            )
+        )
+        db.delete(row)
+        db.commit()
+    finally:
+        db.close()
+    _remove_stored_file(digest)
+    return {"ok": True, "id": report_id}
 
 
 @router.post("/reports/{report_id}/review")
@@ -220,6 +245,14 @@ def _stored(digest: str, day: date) -> dict | None:
         return _public(row, reviews)
     finally:
         db.close()
+
+
+def _remove_stored_file(digest: str) -> None:
+    folder = data_dir() / "reports"
+    for suffix in _ALLOWED:
+        path = folder / f"{digest}{suffix}"
+        if path.is_file():
+            path.unlink()
 
 
 def _find(db, digest: str, day: date) -> EiaReport | None:

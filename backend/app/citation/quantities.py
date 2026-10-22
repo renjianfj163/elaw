@@ -11,6 +11,8 @@ _QUANTITY = re.compile(
 _POPULATION = ("工作人员", "职业", "公众")
 _ORGAN = ("眼晶体", "皮肤", "四肢")
 _PERIOD = ("任何一年", "单一年", "五年", "年有效")
+_FIVE_YEAR = re.compile(r"连续\s*5\s*年|5\s*个连续年")
+_BULLET = re.compile(r"[a-dA-D][）)]")
 _ANNUAL_HINT = ("年", "/a")
 
 
@@ -50,11 +52,18 @@ def sentence_around(text: str, quantity: Quantity) -> tuple[str, int, int]:
 
 
 def extract_quantities(text: str, extra_roles: tuple[str, ...] = ()) -> list[Quantity]:
+    body = text or ""
+    inherited = _intro_population(body)
     found: list[Quantity] = []
-    for match in _QUANTITY.finditer(text or ""):
-        window, start, end = _window(text, match.start(), match.end())
-        unit = _canonical_unit(match.group("unit"), window)
-        roles = set(_roles(window))
+    previous_end = 0
+    for match in _QUANTITY.finditer(body):
+        window, start, end = _window(body, match.start(), match.end())
+        phrase, _, _ = _phrase(body, match.start(), end, previous_end)
+        previous_end = match.end()
+        unit = _canonical_unit(match.group("unit"), phrase)
+        roles = set(_roles(phrase))
+        if not (roles & set(_POPULATION)):
+            roles.update(inherited)
         roles.update(role for role in extra_roles if role)
         found.append(
             Quantity(
@@ -79,8 +88,31 @@ def _window(text: str, match_start: int, match_end: int) -> tuple[str, int, int]
     return text[start:end], start, end
 
 
+def _phrase(text: str, match_start: int, window_end: int, previous_end: int) -> tuple[str, int, int]:
+    """数字前面的分句说明对象。换行只是排版，不把「眼晶体的年当量剂量，150mSv」拆开。"""
+    starts = [previous_end]
+    for mark in ("。", "；", ";"):
+        found = text.rfind(mark, 0, match_start)
+        if found >= 0:
+            starts.append(found + 1)
+    for bullet in _BULLET.finditer(text, 0, match_start):
+        starts.append(bullet.start())
+    start = max(starts)
+    phrase = text[start:window_end].strip()
+    lead = len(text[start:window_end]) - len(text[start:window_end].lstrip())
+    return phrase, start + lead, start + lead + len(phrase)
+
+
+def _intro_population(text: str) -> frozenset[str]:
+    bullet = _BULLET.search(text)
+    intro = text[: bullet.start()] if bullet else ""
+    return frozenset(role for role in _roles(intro) if role in _POPULATION)
+
+
 def _roles(window: str) -> tuple[str, ...]:
     roles = [word for word in (*_POPULATION, *_ORGAN, *_PERIOD) if word in window]
+    if "五年" not in roles and _FIVE_YEAR.search(window):
+        roles.append("五年")
     if "约束" in window:
         roles.append("约束")
     return tuple(roles)

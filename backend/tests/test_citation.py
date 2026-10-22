@@ -104,6 +104,115 @@ def test_numeric_quote_constraint_and_prediction_use_the_engine():
     assert all(item.verdict == "无法判定" for item in not_yet.findings if item.kind == "quote_numeric")
 
 
+def test_constraint_anchors_on_the_sentence_that_sets_the_value():
+    setting = (
+        "\t\t设备的操作人员相对固定，本项目所有从事放射治疗的辐射工作人员（放射治疗科）"
+        "年受照剂量约束值取2mSv；对公众，本项目取0.1mSv/a作为剂量约束值。"
+    )
+    later_worker = (
+        "因此对本项目辐射工作人员可不考虑剂量叠加的影响，即使叠加上医院放射治疗科2023年度的"
+        "个人剂量值（低于1mSv/a），也是满足年剂量约束值的要求"
+    )
+    later_public = "在加速器机房周围50m评价范围内的公众的年剂量远小于4.14μSv，也低于设定的剂量约束目标值0.1mSv/a"
+    restated = "公众、职业照射剂量约束值执行0.1mSv/a和2mSv/a。"
+    same_cell = setting + "参照《放射治疗辐射安全与防护要求》（HJ1198-2021），边界外不大于2.5μSv/h。"
+    parsed = _document(
+        [
+            (same_cell, []),
+            (later_worker, []),
+            (later_public, []),
+            (restated, []),
+            ("表6评价依据", []),
+        ]
+    )
+    clauses = [
+        _clause("职业工作人员连续五年平均有效剂量20mSv", "B.1.1"),
+        _clause("公众年有效剂量1mSv", "B.1.2"),
+    ]
+    checked = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=[])
+    constraints = [item for item in checked.findings if item.kind == "constraint_limit"]
+    spans = [item.evidence_span for item in constraints]
+    assert len(spans) == 2
+    assert any("约束值取2mSv" in span for span in spans)
+    assert any("作为剂量约束值" in span for span in spans)
+    assert all("低于1mSv" not in span and "4.14" not in span and "执行" not in span for span in spans)
+    assert {item.verdict for item in constraints} == {"符合"}
+    for item in constraints:
+        assert parsed.full_text[item.char_start : item.char_end] == item.evidence_span
+
+
+def test_dose_limit_phrase_keeps_the_subject_before_the_comma():
+    occupational = (
+        "B1.1.1.1 应对任何工作人员的职业照射水平进行控制，使之不超过下述限值：\n"
+        "a）由审管部门决定的连续5年的年平均有效剂量（但不可作任何追溯性平均），20mSv；\n"
+        "b）任何一年中的有效剂量，50mSv；\n"
+        "c）眼晶体的年当量剂量，150mSv；\n"
+        "d）四肢（手和足）或皮肤的年当量剂量，500mSv。"
+    )
+    public = (
+        "B1.2.1 剂量限值\n"
+        "实践使公众中有关关键人群组的成员所受到的平均剂量估计值不应超过下述限值：\n"
+        "a）年有效剂量，1mSv；\n"
+        "b）特殊情况下，如果5个连续年的年平均剂量不超过1mSv，则某一单一年份的有效剂量可提高到\n"
+        "5mSv；\n"
+        "c）眼晶体的年当量剂量，15mSv；\n"
+        "d）皮肤的年当量剂量，50mSv。"
+    )
+    parsed = _document(
+        [
+            ("表7-2 剂量限值（GB18871-2002）", [(1, 1, 1)]),
+            ("职业照射", [(1, 1, 1), (1, 1, 1)]),
+            ("公众照射", [(1, 1, 1), (1, 1, 2)]),
+            ("连续五年平均有效剂量20mSv", [(1, 1, 1), (1, 2, 1)]),
+            ("且任何一年有效剂量50mSv", [(1, 1, 1), (1, 3, 1)]),
+            ("眼晶体的当量剂量150mSv/a", [(1, 1, 1), (1, 4, 1)]),
+            ("四肢或皮肤的当量剂量500mSv/a", [(1, 1, 1), (1, 5, 1)]),
+            ("年有效剂量1mSv", [(1, 1, 1), (1, 2, 2)]),
+            ("但连续五年平均值不超过1mSv时", [(1, 1, 1), (1, 3, 2)]),
+            ("某一单一年可为5mSv", [(1, 1, 1), (1, 4, 2)]),
+            ("眼晶体的当量剂量15mSv/a", [(1, 1, 1), (1, 5, 2)]),
+            ("皮肤的当量剂量50mSv/a", [(1, 1, 1), (1, 6, 2)]),
+        ]
+    )
+    clauses = [_clause(occupational, "B1.1.1.1"), _clause(public, "B1.2.1")]
+    checked = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=[])
+    quotes = [item for item in checked.findings if item.kind == "quote_numeric"]
+    assert len(quotes) == 9
+    assert {item.verdict for item in quotes} == {"符合"}
+    assert all(item.quote for item in quotes)
+
+
+def test_verified_standard_matches_code_outside_the_book_title():
+    parsed = _document(
+        [
+            ("表6评价依据", []),
+            (" 《中华人民共和国环境保护法》，2015年1月1日起实施。", [(2, 1, 2)]),
+            (" 《电离辐射防护与辐射源安全基本标准》（GB18871-2002）。", [(2, 1, 2)]),
+            (" 《放射治疗辐射安全与防护要求》（HJ1198-2021）。", [(2, 1, 2)]),
+        ]
+    )
+    rows = load_repeal_map()
+    bare = check_report(parsed, as_of=date(2026, 10, 21), clauses=[], repeal_rows=rows)
+    listed = [item for item in bare.findings if item.kind == "timeliness"]
+    assert listed
+    assert all(not item.evidence_span.startswith(" ") and not item.evidence_span.endswith(" ") for item in listed)
+    for item in listed:
+        assert parsed.full_text[item.char_start : item.char_end] == item.evidence_span
+    assert _law(bare.findings, "环境保护法").verdict == "引用已失效"
+    standard = next(item for item in listed if "GB18871" in item.evidence_span)
+    assert standard.verdict == "超出依据范围"
+    verified = check_report(
+        parsed,
+        as_of=date(2026, 10, 21),
+        clauses=[_clause("公众年有效剂量1mSv", "B.1.2")],
+        repeal_rows=rows,
+    )
+    matched = next(item for item in verified.findings if item.kind == "timeliness" and "GB18871" in item.evidence_span)
+    assert matched.verdict == "有效"
+    still_out = next(item for item in verified.findings if "HJ1198" in item.evidence_span)
+    assert still_out.verdict == "超出依据范围"
+
+
 def test_sample_report_cases():
     parsed = _load_sample()
     if parsed is None:
@@ -133,6 +242,11 @@ def test_sample_report_cases():
 
     constraints = [item for item in checked.findings if item.kind == "constraint_limit"]
     assert constraints and {item.verdict for item in constraints} == {"符合"}
+    joined = " ".join(item.evidence_span for item in constraints)
+    assert "约束值取2mSv" in joined
+    assert "作为剂量约束值" in joined
+    assert "低于1mSv" not in joined
+    assert "约束目标值0.1" not in joined
     predictions = [item for item in checked.findings if item.kind == "prediction_constraint"]
     assert len(predictions) == 2
     assert {item.source_label for item in predictions} == {"报告自设约束"}

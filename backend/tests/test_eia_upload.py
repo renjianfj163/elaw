@@ -2,8 +2,10 @@ import io
 import zipfile
 
 from fastapi.testclient import TestClient
+from sqlalchemy import func, select
 
-from app.main import app
+from app.main import SessionFactory, app
+from app.models import ReviewLog
 
 W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
@@ -57,6 +59,50 @@ def test_report_upload_accepts_many_files_and_keeps_each_result(tmp_path, monkey
     listed = client.get("/api/eia/reports")
     names = [item["filename"] for item in listed.json()["items"]]
     assert names == ["乙.docx", "甲.docx"]
+
+
+def test_delete_checked_report_lets_the_same_file_run_again(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    client = TestClient(app)
+    document = _docx("固体废物污染环境防治法")
+    uploaded = client.post(
+        "/api/eia/check",
+        files=[("files", ("甲.docx", document, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))],
+        data={"as_of": "2026-10-21"},
+    )
+    item = uploaded.json()["items"][0]
+    assert item["ok"] is True
+    finding = item["findings"][0]
+    reviewed = client.post(
+        f"/api/eia/reports/{item['id']}/review",
+        json={"key": finding["key"], "action": "confirm", "by": "测试", "note": "先记下"},
+    )
+    assert reviewed.status_code == 200
+    stored = list((tmp_path / "reports").glob("*.docx"))
+    assert len(stored) == 1
+    removed = client.delete(f"/api/eia/reports/{item['id']}")
+    assert removed.status_code == 200
+    assert removed.json()["id"] == item["id"]
+    listed = client.get("/api/eia/reports").json()["items"]
+    assert item["id"] not in [row["id"] for row in listed]
+    assert list((tmp_path / "reports").glob("*.docx")) == []
+    db = SessionFactory()
+    try:
+        left = db.scalar(select(func.count()).select_from(ReviewLog).where(ReviewLog.target_id == item["id"]))
+    finally:
+        db.close()
+    assert left == 0
+    assert client.delete(f"/api/eia/reports/{item['id']}").status_code == 404
+    again = client.post(
+        "/api/eia/check",
+        files=[("files", ("甲.docx", document, "application/vnd.openxmlformats-officedocument.wordprocessingml.document"))],
+        data={"as_of": "2026-10-21"},
+    )
+    second = again.json()["items"][0]
+    assert second["ok"] is True
+    assert second["reused"] is False
+    assert second["id"] != item["id"]
+    assert second["reviews"] == []
 
 
 def test_review_logs_override_without_touching_result_hash(tmp_path, monkeypatch):
