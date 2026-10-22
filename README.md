@@ -6,9 +6,11 @@
 
 ## 在 Windows 上打开
 
-解压后双击 `启动（无需Docker）.bat`。浏览器会打开本机工作台：上传法规，或按种子清单去公开网站核验。
+给别人用的安装包由 `packaging/build-windows.ps1` 生成，里面带 Python 3.11.9。解压后双击 `启动（无需Docker）.bat`，不用另装 Python。旧版 Word（.doc）仍要本机有 LibreOffice。依据原文和模型密钥不在包里。
 
-已经安装 Docker Desktop 时，可以改用 `启动（Docker）.bat`。这条路使用 PostgreSQL 和 pgvector。
+从本仓库开发时，目录里没有这份 Python，脚本会改用本机的 Python 3.11 建立虚拟环境。
+
+已经安装 Docker Desktop 时，可以改用 `启动（Docker）.bat`。这条路使用 PostgreSQL 和 pgvector，不放进用户安装包。
 
 DeepSeek 的密钥放在环境变量 `DEEPSEEK_API_KEY`，不要写进仓库。当前这版的法规核验不调用模型。
 

@@ -1,6 +1,17 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
+set "PYTHONPATH=%CD%\backend"
+set "ELAW_CONFIG_DIR=%CD%\config"
+set "ELAW_GUARD=1"
+set "PYTHONNOUSERSITE=1"
+
+if exist "%~dp0python\python.exe" (
+  "%~dp0python\python.exe" -m app.local_launch
+  if errorlevel 1 goto fail
+  goto end
+)
+
 where py >nul 2>&1
 if errorlevel 1 (
   echo 这台电脑还没有 Python。请先安装 Python 3.11 或更高版本，安装时勾选 Add python.exe to PATH。
@@ -14,9 +25,6 @@ if not exist "backend\.venv\Scripts\python.exe" (
 )
 backend\.venv\Scripts\python -m pip install -r backend\requirements.txt
 if errorlevel 1 goto fail
-set PYTHONPATH=%CD%\backend
-set ELAW_CONFIG_DIR=%CD%\config
-set ELAW_GUARD=1
 backend\.venv\Scripts\python -m app.local_launch
 if errorlevel 1 goto fail
 goto end

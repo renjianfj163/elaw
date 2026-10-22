@@ -9,6 +9,7 @@ __pycache__/
 node_modules/
 .next/
 dist/
+/python/
 data/**
 !data/repealed_map.csv
 *.db
