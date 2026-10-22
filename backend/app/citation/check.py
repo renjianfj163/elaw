@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from app.citation.gate import accept_quote, citation_result_hash
 from app.citation.numeric import compare_values, same_subject, verdict_of
+from app.citation.place import describe_place
 from app.citation.quantities import Quantity, extract_quantities, roles_of
 from app.citation.timeliness import (
     BibliographyEntry,
@@ -56,6 +57,7 @@ class Finding(BaseModel):
     replaced_by: str | None = None
     trace: list = Field(default_factory=list)
     as_of: str
+    place: str = ""
 
 
 class RejectedFinding(BaseModel):
@@ -117,10 +119,13 @@ def check_report(parsed, *, as_of: date, clauses: list[BasisClauseView], repeal_
         keep(finding, source_text=source, in_force=True, require_quote=True)
 
     payloads = [item.model_dump(mode="json") for item in accepted]
+    for payload in payloads:
+        payload.pop("place", None)
     basis_sha = _basis_sha(clauses, as_of)
     report_sha = sha256_text(report_text)
+    placed = [_with_place(item, parsed.blocks) for item in accepted]
     return CheckOutput(
-        findings=accepted,
+        findings=placed,
         rejected=rejected,
         result_hash=citation_result_hash(
             report_sha=report_sha,
@@ -129,6 +134,13 @@ def check_report(parsed, *, as_of: date, clauses: list[BasisClauseView], repeal_
             findings=payloads,
         ),
     )
+
+
+def _with_place(finding: Finding, blocks) -> Finding:
+    place = describe_place(blocks, finding.char_start)
+    if not place:
+        return finding
+    return finding.model_copy(update={"place": place})
 
 
 def _timeliness(entry: BibliographyEntry, rows: list[RepealRow], clauses: list[BasisClauseView], as_of: date) -> Finding:

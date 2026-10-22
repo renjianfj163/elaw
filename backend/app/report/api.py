@@ -10,6 +10,7 @@ from sqlalchemy import delete, select
 
 from app.basis.store import evaluable_clauses
 from app.citation.check import BasisClauseView, check_report
+from app.citation.place import describe_place
 from app.db import data_dir
 from app.hashing import new_id, sha256_bytes, sha256_text, utc_now
 from app.models import EiaReport, ReviewLog
@@ -41,6 +42,8 @@ def list_reports():
     db = SessionFactory()
     try:
         rows = db.scalars(select(EiaReport).order_by(EiaReport.created_at.desc()).limit(50)).all()
+        for row in rows:
+            _fill_places(db, row)
         grouped = _reviews_for(db, [row.id for row in rows])
         return {"disclaimer": DISCLAIMER, "items": [_public(row, grouped.get(row.id, [])) for row in rows]}
     finally:
@@ -241,10 +244,45 @@ def _stored(digest: str, day: date) -> dict | None:
         row = _find(db, digest, day)
         if row is None:
             return None
+        _fill_places(db, row)
         reviews = _reviews_for(db, [row.id]).get(row.id, [])
         return _public(row, reviews)
     finally:
         db.close()
+
+
+def _report_file(digest: str) -> Path | None:
+    folder = data_dir() / "reports"
+    for suffix in _ALLOWED:
+        path = folder / f"{digest}{suffix}"
+        if path.is_file():
+            return path
+    return None
+
+
+def _fill_places(db, row: EiaReport) -> None:
+    """旧结果只有字符偏移。按原文补上章节或表题，不改 result_hash。"""
+    findings = list(row.findings or [])
+    if not findings or all("place" in (item or {}) for item in findings):
+        return
+    path = _report_file(row.file_sha256)
+    if path is None:
+        return
+    try:
+        parsed = parse_report(path)
+    except (ConvertError, ParseError, OSError):
+        return
+    updated = []
+    changed = False
+    for item in findings:
+        item = dict(item or {})
+        if "place" not in item:
+            item["place"] = describe_place(parsed.blocks, int(item.get("char_start") or 0))
+            changed = True
+        updated.append(item)
+    if changed:
+        row.findings = updated
+        db.commit()
 
 
 def _remove_stored_file(digest: str) -> None:
@@ -381,6 +419,7 @@ def _preview(findings) -> list[dict]:
             "basis_doc_id": getattr(item, "basis_doc_id", None),
             "basis_path": getattr(item, "basis_path", None) or "",
             "section_path": getattr(item, "section_path", "") or "",
+            "place": getattr(item, "place", "") or "",
             "dual_review": getattr(item, "dual_review", "") or "",
             "needs_review": bool(getattr(item, "needs_review", False)),
             "review_note": getattr(item, "review_note", "") or "",

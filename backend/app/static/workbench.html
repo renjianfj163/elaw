@@ -968,8 +968,9 @@
         basis.innerHTML = "<h3>依据原文</h3><p class='hint'>选一条结论后，这里高亮依据里的引用。</p>";
         return;
       }
-      const where = [item.section_path, item.char_start != null ? `偏移 ${item.char_start}` : ""].filter(Boolean).join(" · ");
-      report.innerHTML = `<h3>报告原文</h3><p class="path">${escapeHtml(where || "报告片段")}</p><p class="excerpt"><mark>${escapeHtml(item.evidence_span || "没有抽出报告原文")}</mark></p>`;
+      const where = locationLabel(item);
+      const tip = locationTip(item);
+      report.innerHTML = `<h3>报告原文</h3><p class="path" title="${escapeHtml(tip)}">${escapeHtml(where || "报告片段")}</p><p class="excerpt"><mark>${escapeHtml(item.evidence_span || "没有抽出报告原文")}</mark></p>`;
       const cite = [item.basis_doc_id, item.basis_path].filter(Boolean).join(" ");
       const quote = item.quote || "";
       if (quote) {
@@ -1032,6 +1033,17 @@
       cards.innerHTML = visible.map((item) => cardHtml(item)).join("");
       renderPanes();
     }
+    function locationLabel(item) {
+      if (item.place) return item.place;
+      if (item.section_path) return item.section_path;
+      if (item.char_start != null) return `偏移 ${item.char_start}`;
+      return "";
+    }
+    function locationTip(item) {
+      if (item.char_start == null) return "";
+      if (!item.place && !item.section_path) return "";
+      return `字符偏移 ${item.char_start}`;
+    }
     function cardHtml(item) {
       const verdict = shownVerdict(item);
       const style = VERDICT_STYLE[verdict] || "out";
@@ -1045,7 +1057,8 @@
       const quote = item.quote
         ? `<blockquote>${escapeHtml(item.quote)}</blockquote>`
         : "";
-      const where = [item.section_path, item.char_start != null ? `偏移 ${item.char_start}` : ""].filter(Boolean).join(" · ");
+      const where = locationLabel(item);
+      const tip = locationTip(item);
       let noted = "";
       if (review && review.action === "override") {
         noted = `<p class="hint">已改判为 ${escapeHtml(review.verdict)} · ${escapeHtml(review.by)}${review.note ? " · " + escapeHtml(review.note) : ""}。原结论 ${escapeHtml(item.verdict)}。</p>`;
@@ -1060,7 +1073,7 @@
         <p>${escapeHtml(item.question || "")}</p>
         ${quote}
         <p class="hint">报告证据：${escapeHtml(item.evidence_span || "—")}</p>
-        <p class="hint">位置 ${escapeHtml(where || "—")}</p>
+        <p class="hint" title="${escapeHtml(tip)}">位置 ${escapeHtml(where || "—")}</p>
         ${noted}
         <div class="ops">
           <button type="button" class="act" data-act="confirm">确认</button>

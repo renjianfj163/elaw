@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.citation.check import BasisClauseView, check_report
+from app.citation.place import describe_place
 from app.citation.gate import accept_quote, citation_result_hash
 from app.citation.numeric import compare_values
 from app.citation.quantities import Quantity, extract_quantities
@@ -253,6 +254,52 @@ def test_sample_report_cases():
     assert {item.verdict for item in predictions} == {"符合"}
     again = check_report(parsed, as_of=date(2026, 10, 21), clauses=clauses, repeal_rows=rows)
     assert checked.result_hash == again.result_hash
+
+
+def test_place_names_the_section_or_table():
+    parsed = _document(
+        [
+            ("1.3.9本项目放射源倒装、运输和返回", []),
+            ("表6  评价依据", []),
+            ("法规", [(8, 1, 1)]),
+            ("《中华人民共和国环境保护法》，2015年1月1日起实施。", [(8, 1, 2)]),
+            ("7.3.1剂量限值", [(9, 1, 1)]),
+            ("表7-2  工作人员职业照射和公众照射剂量限值", [(9, 1, 1)]),
+            ("职业工作人员", [(9, 1, 1), (2, 1, 1)]),
+            ("公众", [(9, 1, 1), (2, 1, 2)]),
+            ("连续五年平均有效剂量20mSv", [(9, 1, 1), (2, 2, 1)]),
+            ("眼晶体的当量剂量150mSv/a", [(9, 1, 1), (2, 3, 1)]),
+            ("眼晶体的当量剂量15mSv/a", [(9, 1, 1), (2, 3, 2)]),
+            ("7.3.2剂量约束值", [(9, 1, 1)]),
+            ("年受照剂量约束值取2mSv", [(9, 1, 1)]),
+            ("11.2.5工作人员和公众受照剂量估计", [(13, 1, 1)]),
+            ("表11-12  公众的年附加有效剂量", [(13, 1, 1)]),
+            ("7.76E-2", [(13, 1, 1)]),
+            ("1.03", [(13, 1, 1)]),
+            ("分别为1.70E-1mSv、1.03E-3mSv，满足年剂量约束值（2mSv/a，0.1mSv/a）", [(13, 1, 1)]),
+        ]
+    )
+    for block in parsed.blocks:
+        if block.text.startswith("《中华人民共和国环境保护法》"):
+            block.section_path = "1.3.9"
+        elif "20mSv" in block.text or block.text.startswith("眼晶体的当量剂量15"):
+            block.section_path = "7.3.1"
+        elif block.text.startswith("年受照剂量约束值"):
+            block.section_path = "7.3.2"
+        elif block.text.startswith("分别为1.70E-1mSv"):
+            block.section_path = "11.2.5"
+
+    def placed(prefix: str) -> str:
+        block = next(item for item in parsed.blocks if item.text.startswith(prefix))
+        return describe_place(parsed.blocks, block.char_start)
+
+    law = placed("《中华人民共和国环境保护法》")
+    assert law == "表6 评价依据 · 法规"
+    assert "1.3.9" not in law
+    assert placed("连续五年平均有效剂量20mSv") == "表7-2 · 职业工作人员 · 7.3.1"
+    assert placed("眼晶体的当量剂量15mSv/a") == "表7-2 · 公众 · 7.3.1"
+    assert placed("年受照剂量约束值取2mSv") == "7.3.2 剂量约束值"
+    assert placed("分别为1.70E-1mSv") == "表11-12 · 11.2.5"
 
 
 def _load_sample():
