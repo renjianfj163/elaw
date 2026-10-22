@@ -301,9 +301,27 @@ def test_upload_and_scope_api():
     )
     assert response.status_code == 200
     assert response.json()["status"] == "待确认"
+    confirmed = client.post(
+        "/api/laws/upload",
+        data={
+            "name": "核对上传示例",
+            "level": "部门规章",
+            "confirm": "true",
+            "by": "测试人",
+            "status": "有效",
+            "publish_date": "2011-04-18",
+            "effective_date": "2011-05-01",
+        },
+        files={"file": ("demo.txt", "第一条 这是用来测试已核验上传的正文。".encode("utf-8"), "text/plain")},
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.json()["status"] == "有效"
     listed = client.get("/api/reports")
     match = next(item for item in listed.json()["items"] if item["seed_name"] == "示例文本")
     assert match["version_status"] == "待确认"
     assert match["verified_by"] is None
+    checked = next(item for item in listed.json()["items"] if item["seed_name"] == "核对上传示例")
+    assert checked["version_status"] == "有效"
+    assert checked["verified_by"] == "测试人"
     health = client.get("/api/health")
     assert "不构成法律意见" in health.json()["disclaimer"]

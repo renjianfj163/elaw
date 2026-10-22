@@ -95,6 +95,7 @@
       border-block: 1px solid var(--line);
     }
     h2 { font-size: 18px; font-weight: 600; margin: 22px 0 8px; }
+    #reports + h2 { margin-top: 48px; }
     .hint { color: var(--muted); font-size: 14px; margin: 4px 0; }
     .bar .hint { margin: 0; }
     .bar {
@@ -1201,18 +1202,44 @@
     }
     document.querySelector("#confirmBox").addEventListener("change", syncUpload);
     document.querySelector("#uploadBy").addEventListener("input", syncUpload);
+    document.querySelector("#upFile").addEventListener("change", () => {
+      const file = document.querySelector("#upFile").files[0];
+      if (!file) return;
+      document.querySelector("#uploadStatus").textContent = `已选择 ${file.name}（${formatSize(file.size)}）。点上传后会抽取正文，稍等片刻。`;
+    });
     document.querySelector("#upload").addEventListener("submit", async (event) => {
       event.preventDefault();
       const form = event.target;
       const data = new FormData(form);
       if (!data.get("confirm")) data.set("confirm", "false");
       reviewerName = document.querySelector("#uploadBy").value.trim();
-      const response = await fetch("/api/laws/upload", { method: "POST", body: data });
-      const body = await response.json();
-      document.querySelector("#uploadStatus").textContent = response.ok
-        ? (body.status === "待确认" ? "已保存，尚未核对，评估时不会使用。" : "已保存并记为已核验。")
-        : (body.detail || "上传失败");
-      if (response.ok) loadBasis();
+      const button = document.querySelector("#uploadBtn");
+      const status = document.querySelector("#uploadStatus");
+      const file = data.get("file");
+      const label = file && file.name ? file.name : "这份文件";
+      button.disabled = true;
+      button.textContent = "上传中";
+      button.setAttribute("aria-busy", "true");
+      status.textContent = `正在上传 ${label}，并抽取正文……`;
+      const slow = setTimeout(() => {
+        status.textContent = `还在处理 ${label}。页数多的话会再等一会儿，请先别关这个页面。`;
+      }, 4000);
+      try {
+        const response = await fetch("/api/laws/upload", { method: "POST", body: data });
+        const body = await response.json().catch(() => ({}));
+        const detail = body && typeof body.detail === "string" ? body.detail : "";
+        status.textContent = response.ok
+          ? (body.status === "待确认" ? "已保存，尚未核对，评估时不会使用。" : "已保存并记为已核验。")
+          : (detail || "上传没有完成。请再试一次。");
+        if (response.ok) loadBasis();
+      } catch (error) {
+        status.textContent = "上传没有完成。请再试一次。";
+      } finally {
+        clearTimeout(slow);
+        button.textContent = "上传";
+        button.removeAttribute("aria-busy");
+        syncUpload();
+      }
     });
     document.querySelector("#collect").addEventListener("click", async () => {
       const status = document.querySelector("#collectStatus");

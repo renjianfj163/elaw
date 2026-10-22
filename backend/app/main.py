@@ -13,13 +13,14 @@ from app.laws.catalog import catalog_csv, parse_catalog
 from app.laws.collect import run_collection
 from app.laws.extract import TextExtractError, extract_text
 from app.laws.http import HttpxClient
+from app.hashing import new_id, utc_now
 from app.laws.seeds import load_seeds
 from app.laws.store import add_report, add_version, confirm_version
 from app.llm.api import router as llm_router
 from app.llm.provider import load_local_config
 from app.local_guard import install_guard
 from app.local_guard import router as guard_router
-from app.models import Base, LawVersion, VerificationReport
+from app.models import Base, LawVersion, ReviewLog, VerificationReport
 from app.scope import judge_scope
 
 DISCLAIMER = "辅助预审，不构成法律意见。"
@@ -151,9 +152,6 @@ async def upload(
             verified_at=utc_now() if confirmed else None,
         )
         if confirmed:
-            from app.hashing import new_id, utc_now
-            from app.models import ReviewLog
-
             db.add(
                 ReviewLog(
                     id=new_id(),
