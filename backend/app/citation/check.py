@@ -23,7 +23,7 @@ from app.citation.timeliness import (
     matching_repeal,
 )
 from app.hashing import sha256_text, stable_hash
-from app.verify.citation import quote_matches
+from app.verify.citation import normalize_quote, quote_matches
 
 SCOPE_NOTE = "本次仅做引用核验，未对依据逐条审查"
 UNCOVERED = ["屏蔽计算", "联锁", "监测", "管理制度"]
@@ -180,6 +180,9 @@ def check_report(
         if clause is None:
             keep(finding, source_text="", in_force=True, require_quote=False)
             continue
+        keep(finding, source_text=clause.text, in_force=_in_force(clause, as_of), require_quote=True)
+
+    for finding, clause in _copied_quotes(parsed.blocks, clauses, as_of):
         keep(finding, source_text=clause.text, in_force=_in_force(clause, as_of), require_quote=True)
 
     for finding, source in _predictions(parsed.blocks, as_of):
@@ -530,6 +533,125 @@ def _measured_finding(kind, question, verdict, located, chosen, trace, source_la
         basis_path=clause.path,
         source_label=source_label,
         trace=trace,
+        as_of=as_of.isoformat(),
+    )
+
+
+_MIN_COPY = 12
+
+
+def _copied_quotes(blocks, clauses, as_of: date):
+    """报告里连续抄下的已核验条款原文。转述对不上连续原文时不另造一条无法核对。"""
+    usable = [clause for clause in clauses if _in_force(clause, as_of)]
+    paired = []
+    for block in blocks:
+        text = block.text or ""
+        named = [clause for clause in usable if _block_cites(text, clause)]
+        if not named:
+            continue
+        for sentence, start, end in _sentences(text):
+            hits = []
+            for clause in named:
+                span = _common_span(sentence, clause.text)
+                if len(span) < _MIN_COPY or _span_is_title(span, clause):
+                    continue
+                hits.append((span, clause))
+            for span, clause in _prefer_longer_paths(hits):
+                paired.append((_copy_finding(block, sentence, start, end, span, clause, as_of), clause))
+    return paired
+
+
+def _block_cites(text: str, clause: BasisClauseView) -> bool:
+    if _same_standard(text, clause):
+        return True
+    title = (clause.title or "").strip()
+    return bool(title and title in text)
+
+
+def _sentences(text: str):
+    found = []
+    start = 0
+    for index, char in enumerate(text):
+        if char not in "。\n":
+            continue
+        end = index if char == "\n" else index + 1
+        chunk = text[start:end]
+        lead = len(chunk) - len(chunk.lstrip())
+        span = chunk.strip()
+        if span:
+            found.append((span, start + lead, start + lead + len(span)))
+        start = index + 1
+    if start < len(text):
+        chunk = text[start:]
+        lead = len(chunk) - len(chunk.lstrip())
+        span = chunk.strip()
+        if span:
+            found.append((span, start + lead, start + lead + len(span)))
+    return found
+
+
+def _common_span(report: str, clause: str) -> str:
+    left, _ = _fold_index(report)
+    right, origins = _fold_index(clause)
+    if not left or not right:
+        return ""
+    best_len = 0
+    best_end = 0
+    previous = [0] * (len(right) + 1)
+    for char in left:
+        current = [0] * (len(right) + 1)
+        for index, other in enumerate(right, start=1):
+            if char != other:
+                continue
+            current[index] = previous[index - 1] + 1
+            if current[index] > best_len:
+                best_len = current[index]
+                best_end = index
+        previous = current
+    if best_len == 0:
+        return ""
+    start = origins[best_end - best_len]
+    end = origins[best_end - 1] + 1
+    return clause[start:end]
+
+
+def _fold_index(text: str) -> tuple[str, list[int]]:
+    folded: list[str] = []
+    origins: list[int] = []
+    for index, char in enumerate(text):
+        for piece in normalize_quote(char):
+            folded.append(piece)
+            origins.append(index)
+    return "".join(folded), origins
+
+
+def _span_is_title(span: str, clause: BasisClauseView) -> bool:
+    title = normalize_quote(clause.title or "")
+    folded = normalize_quote(span)
+    return bool(title and folded in title)
+
+
+def _prefer_longer_paths(hits: list[tuple[str, BasisClauseView]]):
+    kept: dict[str, BasisClauseView] = {}
+    for span, clause in hits:
+        current = kept.get(span)
+        if current is None or len(clause.path) > len(current.path):
+            kept[span] = clause
+    return [(span, clause) for span, clause in kept.items()]
+
+
+def _copy_finding(block, sentence: str, start: int, end: int, span: str, clause: BasisClauseView, as_of: date) -> Finding:
+    return Finding(
+        kind="quote_text",
+        question="这句转述是否连续出现在已核验条款的原文里",
+        verdict="与依据一致",
+        evidence_span=sentence,
+        char_start=block.char_start + start,
+        char_end=block.char_start + end,
+        quote=span,
+        basis_doc_id=clause.doc_id,
+        basis_path=clause.path,
+        source_label="已核验条款",
         as_of=as_of.isoformat(),
     )
 

@@ -523,6 +523,42 @@ def test_unverified_dose_limit_is_ignored(tmp_path):
     assert rows[0].clause_path == "B.1.2"
 
 
+def test_copied_wording_matches_a_verified_clause():
+    control = _clause(
+        "6.4.1.1 注册者和许可证持有者应把需要和可能需要专门防护手段或安全措施的区域定为控制区。",
+        "6.4.1.1",
+    )
+    supervised = _clause(
+        "6.4.2.1 这种区域未被定为控制区，在其中通常不需要专门的防护手段或安全措施，但需要经常对职业照射条件进行监督和评价。",
+        "6.4.2.1",
+    )
+    report = (
+        "根据《电离辐射防护与辐射源安全基本标准》（GB18871-2002）的规定，"
+        "控制区是指需要和可能需要专门防护手段或安全措施的区域；"
+        "监督区是指通常不需要专门的防护手段或安全措施，但需要经常对职业照射条件进行监督和评价的区域。"
+    )
+    parsed = _document([(report, [])])
+    checked = check_report(parsed, as_of=date(2026, 10, 21), clauses=[control, supervised], repeal_rows=[], dose_limits=[])
+    copied = [item for item in checked.findings if item.kind == "quote_text"]
+    assert {item.basis_path for item in copied} == {"6.4.1.1", "6.4.2.1"}
+    assert {item.verdict for item in copied} == {"与依据一致"}
+    sources = {"6.4.1.1": control.text, "6.4.2.1": supervised.text}
+    for item in copied:
+        assert item.quote in sources[item.basis_path]
+        assert normalize_space(item.quote) in normalize_space(report)
+        assert parsed.full_text[item.char_start : item.char_end] == item.evidence_span
+    named_only = _document([("《电离辐射防护与辐射源安全基本标准》（GB18871-2002）。", [])])
+    listed = check_report(named_only, as_of=date(2026, 10, 21), clauses=[control], repeal_rows=[], dose_limits=[])
+    assert [item for item in listed.findings if item.kind == "quote_text"] == []
+    hidden = control.model_copy(update={"verified": False})
+    blocked = check_report(parsed, as_of=date(2026, 10, 21), clauses=[hidden, supervised], repeal_rows=[], dose_limits=[])
+    assert {item.basis_path for item in blocked.findings if item.kind == "quote_text"} == {"6.4.2.1"}
+
+
+def normalize_space(text: str) -> str:
+    return "".join(text.split())
+
+
 def _limit(path: str, population: str, period: str, value: float, quote: str, organ: str = "") -> DoseLimit:
     return DoseLimit(
         doc_id="GB18871-2002",
