@@ -31,3 +31,4 @@ def test_package_script_pins_embeddable_python():
     assert 'Join-Path $stage "libreoffice"' in script
     assert "program\\soffice.com" in script
     assert "/XF *.msi" in script
+    assert (ROOT / "backend" / "seeds" / "confirmed" / "manifest.yaml").is_file()

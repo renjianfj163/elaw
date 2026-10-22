@@ -9,6 +9,7 @@ from app.basis.api import router as basis_router
 from app.checks.api import router as check_router
 from app.report.api import router as report_router
 from app.db import database_url, ensure_runtime_schema, make_engine, make_session_factory
+from app.laws.bundled import install_confirmed
 from app.laws.catalog import catalog_csv, parse_catalog
 from app.laws.collect import run_collection
 from app.laws.extract import TextExtractError, extract_text
@@ -30,6 +31,11 @@ SessionFactory = make_session_factory(engine)
 if database_url().startswith("sqlite"):
     Base.metadata.create_all(engine)
     ensure_runtime_schema(engine)
+    _ready = SessionFactory()
+    try:
+        install_confirmed(_ready)
+    finally:
+        _ready.close()
 
 app = FastAPI(title="环评合规预审")
 app.include_router(basis_router)

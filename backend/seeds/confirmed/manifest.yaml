@@ -1,0 +1,33 @@
+# 已经人工确认的依据。正文在同目录的文本文件里，不写进代码。
+# 启动时若本机还没有同一份哈希，就写入依据库，确认人与日期沿用这里的核对记录。
+items:
+  - name: 中华人民共和国生态环境法典
+    level: 法律
+    status: 有效
+    source: flk
+    publish_date: 2026-03-12
+    effective_date: 2026-08-15
+    verified_by: rj
+    verified_at: 2026-10-21 15:13:44.721008
+    file: eco-code-2026.txt
+    sha256: b5d02bf5acb6a08ee99794a847524a5e18ba1254d3dc97e5ca356b16c5f77368
+  - name: GB 18871-2002 电离辐射防护与辐射源安全基本标准
+    level: 国家标准
+    status: 有效
+    source: manual
+    publish_date: 2002-10-08
+    effective_date: 2003-04-01
+    verified_by: rj
+    verified_at: 2026-10-21 15:30:13.776687
+    file: gb18871-2002.txt
+    sha256: a28431a5c0372a41251998567662977e1ea8836fe87800fbc005f04dc0cddf0e
+  - name: 环保部十八号令
+    level: 部门规章
+    status: 有效
+    source: manual
+    publish_date: 2011-04-18
+    effective_date: 2011-05-01
+    verified_by: rj
+    verified_at: 2026-10-22 03:40:34.472807
+    file: mep-order-18.txt
+    sha256: 3c69e32c6422a29cc26d7ad5b4d73163608fdee2ee19ada38f5a4598ca53a78c

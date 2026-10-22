@@ -6,7 +6,7 @@
 
 ## 在 Windows 上打开
 
-给别人用的安装包由 `packaging/build-windows.ps1` 生成，里面带 Python 3.11.9 和 LibreOffice 26.8.1。解压后双击 `启动（无需Docker）.bat`，不用另装 Python，旧版 Word（.doc）也不用另装 LibreOffice。带文字层的 PDF 可以直接上传，扫描件请先另存为 .docx。依据原文和模型密钥不在包里。安装包会大出几百 MB。
+给别人用的安装包由 `packaging/build-windows.ps1` 生成，里面带 Python 3.11.9 和 LibreOffice 26.8.1。解压后双击 `启动（无需Docker）.bat`，不用另装 Python，旧版 Word（.doc）也不用另装 LibreOffice。带文字层的 PDF 可以直接上传，扫描件请先另存为 .docx。已经确认的三份依据在包里：生态环境法典、GB 18871-2002、环保部十八号令。其余依据原文和模型密钥不在包里。安装包会大出几百 MB。
 
 从本仓库开发时，目录里没有这份 Python，脚本会改用本机的 Python 3.11 建立虚拟环境。
 
