@@ -151,18 +151,36 @@
       border-radius: 10px;
     }
     .history-open {
-      display: grid;
-      grid-template-columns: minmax(0, 1.4fr) auto minmax(0, 1fr);
-      gap: 8px 16px;
-      align-items: center;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 2px;
       width: 100%;
       min-width: 0;
       border: 0;
       padding: 0;
       text-align: left;
       background: transparent;
+      white-space: normal;
+    }
+    .history-main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 4px 16px;
+      align-items: baseline;
+      min-width: 0;
     }
     .history .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history .when { white-space: nowrap; }
+    .history .verdict {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      min-width: 0;
+      white-space: normal;
+      line-height: 1.55;
+    }
+    .history .verdict > span { white-space: nowrap; }
     table { width: 100%; border-collapse: collapse; }
     th, td { border-bottom: 1px solid var(--line); text-align: left; padding: 8px 6px; vertical-align: top; }
     th { color: var(--muted); font-weight: 600; font-size: 14px; }
@@ -285,7 +303,7 @@
     dialog::backdrop { background: rgba(20, 26, 23, 0.45); }
     dialog .grid-2 input, dialog .grid-2 select { width: 100%; }
     @media (max-width: 800px) {
-      .file, .history, .history-open, .split, .grid-2 { grid-template-columns: 1fr; }
+      .file, .history, .history-main, .split, .grid-2 { grid-template-columns: 1fr; }
       .coverage { grid-template-columns: 1fr 1fr; }
       .top { flex-wrap: wrap; }
       .top-actions { margin-left: 0; }
@@ -853,7 +871,7 @@
         ["E", "内部自洽", inner]
       ];
     }
-    function verdictLine(result) {
+    function verdictParts(result) {
       const counts = {};
       (result.findings || []).forEach((item) => {
         const verdict = displayVerdict(result, item);
@@ -861,8 +879,15 @@
       });
       const preferred = [...CHIP_ORDER];
       Object.keys(counts).forEach((key) => { if (!preferred.includes(key)) preferred.push(key); });
-      const parts = preferred.filter((key) => counts[key]).map((key) => `${counts[key]} ${shortVerdict(key)}`);
-      return parts.join(" · ") || "没有可列出的引用";
+      return preferred.filter((key) => counts[key]).map((key) => `${counts[key]} ${shortVerdict(key)}`);
+    }
+    function verdictLine(result) {
+      return verdictParts(result).join(" · ") || "没有可列出的引用";
+    }
+    function verdictHtml(result) {
+      const parts = verdictParts(result);
+      if (!parts.length) return `<span class="verdict">没有可列出的引用</span>`;
+      return `<span class="verdict">${parts.map((part, index) => `<span>${escapeHtml(part)}${index < parts.length - 1 ? " · " : ""}</span>`).join("")}</span>`;
     }
     function renderFiles() {
       const box = document.querySelector("#fileList");
@@ -1000,9 +1025,11 @@
       }
       box.innerHTML = historyItems.map((item) => `<div class="history">
         <button type="button" class="history-open" data-id="${escapeHtml(item.id)}">
-          <span class="name">${escapeHtml(item.filename)}</span>
-          <span>${escapeHtml(formatWhen(item.created_at))}</span>
-          <span>${escapeHtml(verdictLine(item))}</span>
+          <span class="history-main">
+            <span class="name">${escapeHtml(item.filename)}</span>
+            <span class="when">${escapeHtml(formatWhen(item.created_at))}</span>
+          </span>
+          ${verdictHtml(item)}
         </button>
         <button type="button" class="text danger" data-act="delete" data-id="${escapeHtml(item.id)}">删除</button>
       </div>`).join("");
