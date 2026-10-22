@@ -150,6 +150,27 @@ def test_shallow_cell_text_misses_nested_table():
     assert "初级屏蔽混凝土" in parsed.full_text
 
 
+def test_bundled_soffice_comes_before_a_system_install(monkeypatch, tmp_path):
+    program = tmp_path / "libreoffice" / "program"
+    program.mkdir(parents=True)
+    bundled = program / "soffice.com"
+    bundled.write_bytes(b"bundle")
+    monkeypatch.delenv("SOFFICE_PATH", raising=False)
+    monkeypatch.setattr("app.parse.convert.repo_root", lambda: tmp_path)
+    assert find_soffice() == bundled
+
+
+def test_soffice_path_overrides_bundle(monkeypatch, tmp_path):
+    program = tmp_path / "libreoffice" / "program"
+    program.mkdir(parents=True)
+    (program / "soffice.com").write_bytes(b"bundle")
+    override = tmp_path / "custom.com"
+    override.write_bytes(b"custom")
+    monkeypatch.setenv("SOFFICE_PATH", str(override))
+    monkeypatch.setattr("app.parse.convert.repo_root", lambda: tmp_path)
+    assert find_soffice() == override
+
+
 def test_sample_report_tables_and_images():
     if not SAMPLE_DOC.is_file():
         pytest.skip(f"样例不在 {SAMPLE_DOC}")

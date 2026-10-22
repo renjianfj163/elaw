@@ -71,6 +71,7 @@
 样例实测：
 
 - `.doc` 经 LibreOffice headless 转为 `.docx`（约 12MB → 5MB）
+- Windows 安装包内置 LibreOffice 26.8.1 官方 Win x86-64 主程序（不含帮助包）。构建时下载 MSI、核对 sha256，管理安装解压到包内 `libreoffice/program`。查找顺序是 `SOFFICE_PATH`、包内这份、本机已安装的 LibreOffice。仓库不存放这份程序；开发机没有包内副本时仍用本机安装
 - 报告是表格体例：顶层 16 个表（表 1–表 14 + 附图区），内部还嵌套 34 个表，共 50 个。章节正文在单元格里。表 7 为评价标准，表 9 为工程分析，表 10 为辐射安全与防护，表 12 为辐射安全管理
 - 只用 `python-docx` 的 `cell.text` 会漏掉全部嵌套表。剂量限值表 7-2、屏蔽设计表 10-1 都在嵌套表里
 - `word/media` 有 57 个图片文件，含 `.wmf`（多为公式或示意图）。屏蔽计算公式、平面图、联锁逻辑图都在图片里，文本里没有
@@ -189,7 +190,7 @@ llm:
 
 ## 7. 技术栈
 
-Python 3.11、FastAPI、Pydantic v2、SQLite、`python-docx`、`pypdf`（文字层；法规上传与报告 PDF 共用，不新增包）、LibreOffice（`soffice --headless`）、`rank_bm25`、`jieba`、`pint`、pytest。
+Python 3.11、FastAPI、Pydantic v2、SQLite、`python-docx`、`pypdf`（文字层；法规上传与报告 PDF 共用，不新增包）、LibreOffice（`soffice --headless`；Windows 安装包内置 26.8.1，不是新的 Python 依赖）、`rank_bm25`、`jieba`、`pint`、pytest。
 
 先做 CLI，输出 Markdown / HTML 核对表。双栏界面（左报告高亮、右依据高亮）放在最后。
 

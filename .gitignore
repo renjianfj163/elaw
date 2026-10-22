@@ -10,6 +10,7 @@ node_modules/
 .next/
 dist/
 /python/
+/libreoffice/
 data/**
 !data/repealed_map.csv
 *.db

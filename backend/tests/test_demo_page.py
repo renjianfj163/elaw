@@ -9,8 +9,8 @@ def test_public_demo_page_stays_local_and_fictional():
     assert "elaw://launch" not in text
     assert "示意" in text
     assert "暂仅支持 Windows" in text
-    assert "已自带 Python" in text
-    assert "LibreOffice" in text
+    assert "已自带 Python 和 LibreOffice" in text
+    assert "另装 LibreOffice" not in text
     assert "另存为 .docx" in text
     assert "示意综合医院" not in text
     assert "animation" not in text

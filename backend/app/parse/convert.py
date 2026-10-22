@@ -7,8 +7,22 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from app.db import repo_root
+
+
 class ConvertError(Exception):
     pass
+
+
+_SOFFICE_NAMES = ("soffice.com", "soffice.exe", "soffice")
+
+
+def _soffice_in(program: Path) -> Path | None:
+    for name in _SOFFICE_NAMES:
+        candidate = program / name
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def find_soffice() -> Path:
@@ -19,21 +33,24 @@ def find_soffice() -> Path:
             return candidate
         raise ConvertError(f"SOFFICE_PATH 指向的文件不存在：{candidate}")
 
+    bundled = _soffice_in(repo_root() / "libreoffice" / "program")
+    if bundled is not None:
+        return bundled
+
     which = shutil.which("soffice")
     if which:
         return Path(which)
 
-    names = ("soffice.com", "soffice.exe", "soffice")
-    roots = (
+    for root in (
         Path(r"C:\Program Files\LibreOffice\program"),
         Path(r"C:\Program Files (x86)\LibreOffice\program"),
+    ):
+        found = _soffice_in(root)
+        if found is not None:
+            return found
+    raise ConvertError(
+        "没有找到 LibreOffice。安装包里应有 libreoffice\\program；若已删除，请重新解压，或设置 SOFFICE_PATH。"
     )
-    for root in roots:
-        for name in names:
-            candidate = root / name
-            if candidate.is_file():
-                return candidate
-    raise ConvertError("没有找到 LibreOffice。请安装后重试，或设置 SOFFICE_PATH。")
 
 
 def _soffice_env(soffice: Path) -> dict[str, str]:

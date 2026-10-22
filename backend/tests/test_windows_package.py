@@ -24,3 +24,10 @@ def test_package_script_pins_embeddable_python():
     assert "psycopg" not in runtime
     assert "pgvector" not in runtime
     assert "fastapi" in runtime
+    assert '$loVersion = "26.8.1"' in script
+    assert "download.documentfoundation.org" in script
+    assert "C6298B10CFA1748BCBEDAD94C62CE771E240E5021BFD6D7A967CD571B04B5312" in script
+    assert "msiexec.exe" in script
+    assert 'Join-Path $stage "libreoffice"' in script
+    assert "program\\soffice.com" in script
+    assert "/XF *.msi" in script
