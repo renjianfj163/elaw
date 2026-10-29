@@ -1,4 +1,5 @@
 import os
+import time
 
 from fastapi.testclient import TestClient
 
@@ -20,7 +21,8 @@ def test_public_trial_health_hides_the_key_and_explains_the_upload(monkeypatch):
     assert body["public_trial"] is True
     assert "送去 Gemini" in body["notice"]
     assert "保密" in body["notice"]
-    assert body["limits"]["max_files"] == 8
+    assert body["limits"]["max_files"] == 120
+    assert body["limits"]["max_pdf_mb"] == 40
     assert "trial-secret-value" not in response.text
     assert "api_key" not in body
 
@@ -145,13 +147,84 @@ def test_public_trial_rate_limit_stops_repeated_pings(tmp_path, monkeypatch):
     assert "次数" in limited.json()["detail"]
 
 
-def test_public_trial_caps_schematic_batches(monkeypatch):
+def test_public_review_finishes_in_the_background(monkeypatch):
     monkeypatch.setenv("ELAW_PUBLIC", "1")
     reset_for_tests()
-    files = [("schematic", (f"{index}.pdf", b"%PDF-1.4", "application/pdf")) for index in range(9)]
-    response = _client().post("/api/schematic/review", files=files)
-    assert response.status_code == 400
-    assert "8" in response.json()["detail"]
+
+    class Result:
+        basis_note = ""
+        coverage_note = ""
+
+        def model_dump(self):
+            return {"items": [], "basis_note": "", "coverage_note": ""}
+
+    monkeypatch.setattr("app.schematic.api.review_planned", lambda *args, **kwargs: Result())
+    monkeypatch.setattr(
+        "app.schematic.api.discover_missing_rules",
+        lambda *args, **kwargs: __import__("app.schematic.discovery", fromlist=["DiscoveryOutcome"]).DiscoveryOutcome(note="ok"),
+    )
+    response = _client().post(
+        "/api/schematic/review",
+        files=[("schematic", ("board.pdf", b"%PDF-1.4", "application/pdf"))],
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+    assert response.json()["status"] == "running"
+    finished = None
+    for _ in range(50):
+        finished = _client().get(f"/api/schematic/review/{job_id}")
+        if finished.json()["status"] != "running":
+            break
+        time.sleep(0.05)
+    assert finished is not None
+    assert finished.json()["status"] == "done"
+    assert finished.json()["result"]["filename"] == "board.pdf"
+
+
+def test_public_extract_returns_text_before_figure_reading(monkeypatch):
+    monkeypatch.setenv("ELAW_PUBLIC", "1")
+    monkeypatch.setattr(
+        "app.schematic.api.extract_material",
+        lambda *args, **kwargs: {
+            "role": "datasheet",
+            "filename": "manual.pdf",
+            "text": "引脚说明",
+            "chars": 4,
+            "limit": 600000,
+            "too_long": False,
+        },
+    )
+
+    def slow_figures(data):
+        time.sleep(0.3)
+        from app.schematic.datasheet_figures import FigurePage, FigureRead
+
+        return FigureRead(
+            pages=[FigurePage(page=2, reason="many_images", text="EN 接高电平")],
+            status="read",
+            note="识图读到 1 页图中文字，已写入摘录，审查可以引用。",
+        )
+
+    monkeypatch.setattr("app.schematic.materials._figures", slow_figures)
+    response = _client().post(
+        "/api/schematic/extract",
+        data={"role": "datasheet", "read_figures": "1"},
+        files=[("file", ("manual.pdf", b"%PDF-1.4", "application/pdf"))],
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["text"] == "引脚说明"
+    assert body["figure_status"] == "running"
+    job_id = body["figure_job"]
+    finished = None
+    for _ in range(40):
+        finished = _client().get(f"/api/schematic/extract/{job_id}")
+        if finished.json()["status"] != "running":
+            break
+        time.sleep(0.05)
+    assert finished is not None
+    assert finished.json()["status"] == "done"
+    assert "EN 接高电平" in finished.json()["text_block"]
 
 
 def test_public_trial_opens_without_the_local_launch_cookie(monkeypatch):

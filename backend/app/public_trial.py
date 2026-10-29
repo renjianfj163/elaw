@@ -12,13 +12,10 @@ NOTICE = (
     "试用密钥留在服务器上，页面里看不到。"
 )
 
-TRIAL_FILES = 8
-TRIAL_PDF_BYTES = 15 * 1024 * 1024
-TRIAL_TOTAL_BYTES = 40 * 1024 * 1024
 _WINDOW_SECONDS = 60 * 60
 
 _PATH_LIMITS = {
-    "/api/schematic/review": ("ELAW_TRIAL_REVIEW_LIMIT", 4),
+    "/api/schematic/review": ("ELAW_TRIAL_REVIEW_LIMIT", 200),
     "/api/schematic/extract": ("ELAW_TRIAL_EXTRACT_LIMIT", 40),
     "/api/schematic/datasheets/resolve": ("ELAW_TRIAL_RESOLVE_LIMIT", 20),
     "/api/schematic/datasheets/upload": ("ELAW_TRIAL_UPLOAD_LIMIT", 10),
@@ -37,17 +34,11 @@ def enabled() -> bool:
 
 
 def trial_caps() -> tuple[int, int, int] | None:
-    if not enabled():
-        return None
-    return TRIAL_FILES, TRIAL_PDF_BYTES, TRIAL_TOTAL_BYTES
+    return None
 
 
 def limits_payload() -> dict:
-    return {
-        "max_files": TRIAL_FILES,
-        "max_pdf_mb": TRIAL_PDF_BYTES // (1024 * 1024),
-        "max_total_mb": TRIAL_TOTAL_BYTES // (1024 * 1024),
-    }
+    return {"max_files": 120, "max_pdf_mb": 40, "max_total_mb": 500}
 
 
 def oversized_detail(size: int) -> str:

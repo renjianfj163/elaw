@@ -251,10 +251,22 @@ def test_extract_puts_figure_text_into_the_excerpt(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert "3.6V" in body["text"]
-    assert "图上写着 EN 接高电平" in body["text"]
-    assert "引脚说明与典型应用（图中文字）" in body["text"]
-    assert body["figures"][0]["text"] == "图上写着 EN 接高电平"
-    assert body["figure_status"] == "read"
+    assert body["figure_job"]
+    import time
+
+    finished = None
+    for _ in range(40):
+        finished = client.get(f"/api/schematic/extract/{body['figure_job']}")
+        if finished.json()["status"] != "running":
+            break
+        time.sleep(0.05)
+    assert finished is not None
+    done = finished.json()
+    assert done["status"] == "done"
+    assert "图上写着 EN 接高电平" in done["text_block"]
+    assert "引脚说明与典型应用（图中文字）" in done["text_block"]
+    assert done["figures"][0]["text"] == "图上写着 EN 接高电平"
+    assert done["figure_status"] == "read"
 
 
 def test_extract_without_the_flag_does_not_attach_figures():

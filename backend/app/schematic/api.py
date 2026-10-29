@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import logging
+import shutil
 import tempfile
+import threading
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
@@ -24,7 +27,8 @@ from app.schematic.engine.model import Circuit
 from app.schematic.knowledge.model import DocumentKind, KnowledgeError
 from app.schematic.knowledge.review import review_with_knowledge
 from app.schematic.knowledge.store import open_default_store
-from app.public_trial import oversized_detail, trial_caps
+from app.public_trial import enabled as trial_mode
+from app.public_trial import oversized_detail, release_review_slot, take_review_slot, trial_caps
 from app.schematic.review import (
     MAX_BASIS_CHARS,
     MAX_PDF_BYTES,
@@ -67,9 +71,134 @@ async def extract(
     _reject_oversized(len(payload))
     enabled = read_figures.strip().lower() in {"1", "true", "yes", "on"}
     try:
+        if enabled and role == "datasheet":
+            body = extract_material(name, payload, role, read_figures=False)
+            import secrets
+
+            job_id = secrets.token_urlsafe(18)
+            _remember_figure(job_id, {"status": "running"})
+            threading.Thread(target=_figure_worker, args=(job_id, payload), daemon=True).start()
+            body["figure_job"] = job_id
+            body["figure_status"] = "running"
+            body["figure_note"] = "文字已经抽出。图还在识别，完成后会补进摘录。"
+            return body
         return extract_material(name, payload, role, read_figures=enabled and role == "datasheet")
     except MaterialError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+_figure_jobs: dict[str, dict] = {}
+
+
+def _remember_figure(job_id: str, payload: dict) -> None:
+    with _jobs_lock:
+        _figure_jobs[job_id] = payload
+
+
+def _figure_worker(job_id: str, data: bytes) -> None:
+    try:
+        from app.schematic.datasheet_figures import quotable_figure_block
+        from app.schematic.materials import _figures
+
+        figures = _figures(data)
+        _remember_figure(
+            job_id,
+            {
+                "status": "done",
+                "text_block": quotable_figure_block(figures),
+                "figures": [item.model_dump() for item in figures.pages if item.text.strip()],
+                "figure_pages": [item.page for item in figures.pages],
+                "figure_status": figures.status,
+                "figure_note": figures.note,
+            },
+        )
+    except Exception:
+        logging.exception("公开试用识图失败")
+        _remember_figure(job_id, {"status": "error", "detail": "识图没有完成。文字层已经留下，可以继续审查。"})
+
+
+@router.get("/extract/{job_id}")
+def extract_status(job_id: str):
+    with _jobs_lock:
+        job = dict(_figure_jobs.get(job_id) or {})
+    if not job:
+        raise HTTPException(status_code=404, detail="这次识图已经不在了。文字层还在，可以继续。")
+    return job
+
+
+def _stage_schematics(schematic: list[UploadFile], max_files: int, max_pdf: int, max_total: int) -> tuple[Path, list[Path], list[str]]:
+    if not schematic:
+        raise HTTPException(status_code=400, detail="请上传原理图 PDF")
+    if len(schematic) > max_files:
+        raise HTTPException(status_code=400, detail=f"原理图一次最多 {max_files} 份")
+    folder = Path(tempfile.mkdtemp(prefix="schematic-"))
+    paths: list[Path] = []
+    names: list[str] = []
+    try:
+        total = 0
+        for index, item in enumerate(schematic):
+            name = Path(item.filename or "").name or f"schematic-{index}.pdf"
+            if Path(name).suffix.lower() != ".pdf":
+                raise HTTPException(status_code=400, detail="原理图需要是 PDF")
+            payload = item.file.read()
+            if not payload:
+                raise HTTPException(status_code=400, detail="原理图 PDF 是空的")
+            if len(payload) > max_pdf:
+                raise HTTPException(status_code=400, detail=f"有一份原理图超过 {max_pdf // (1024 * 1024)}MB")
+            total += len(payload)
+            if total > max_total:
+                raise HTTPException(status_code=400, detail=f"原理图合计超过 {max_total // (1024 * 1024)}MB")
+            safe = "".join("_" if ch in '<>:"/\\|?*' else ch for ch in name).strip()[:80]
+            if not safe.lower().endswith(".pdf"):
+                safe = f"{safe or 'schematic'}.pdf"
+            dest = folder / f"{index:03d}-{safe}"
+            dest.write_bytes(payload)
+            paths.append(dest)
+            names.append(name)
+    except Exception:
+        shutil.rmtree(folder, ignore_errors=True)
+        raise
+    return folder, paths, names
+
+
+def finish_review(paths: list[Path], names: list[str], product_spec_text: str, datasheet_text: str) -> dict:
+    result = review_planned(paths, product_spec_text, datasheet_text)
+    try:
+        found = discover_missing_rules(paths)
+    except Exception:
+        found = DiscoveryOutcome(note="规则建议没有生成")
+    body = result.model_dump()
+    body["filename"] = "、".join(names)
+    note = " ".join(part for part in (result.basis_note.strip(), result.coverage_note.strip()) if part)
+    body["disclaimer"] = f"{note}{DISCLAIMER}" if note else DISCLAIMER
+    body["pending_rules"] = [item.model_dump() for item in found.rules]
+    body["discovery_note"] = found.note
+    return body
+
+
+_jobs: dict[str, dict] = {}
+_jobs_lock = threading.Lock()
+
+
+def _remember_job(job_id: str, payload: dict) -> None:
+    with _jobs_lock:
+        _jobs[job_id] = payload
+
+
+def _public_review_job(job_id: str, folder: Path, paths: list[Path], names: list[str], product_spec_text: str, datasheet_text: str) -> None:
+    try:
+        body = finish_review(paths, names, product_spec_text, datasheet_text)
+        _remember_job(job_id, {"status": "done", "result": body})
+    except SchematicInputError as exc:
+        _remember_job(job_id, {"status": "error", "detail": str(exc)})
+    except GeminiCallError as exc:
+        _remember_job(job_id, {"status": "error", "detail": str(exc)})
+    except Exception:
+        logging.exception("公开试用审查失败")
+        _remember_job(job_id, {"status": "error", "detail": "审查没有完成。"})
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+        release_review_slot()
 
 
 @router.post("/review")
@@ -79,51 +208,38 @@ async def review(
     datasheet_text: str = Form(""),
 ):
     max_files, max_pdf, max_total = _upload_caps()
-    if not schematic:
-        raise HTTPException(status_code=400, detail="请上传原理图 PDF")
-    if len(schematic) > max_files:
-        raise HTTPException(status_code=400, detail=f"原理图一次最多 {max_files} 份")
-    names: list[str] = []
+    folder, paths, names = _stage_schematics(list(schematic), max_files, max_pdf, max_total)
+    if trial_mode():
+        if not take_review_slot():
+            shutil.rmtree(folder, ignore_errors=True)
+            raise HTTPException(status_code=429, detail="正在给别的试用做审查，请过几分钟再试。")
+        import secrets
+
+        job_id = secrets.token_urlsafe(24)
+        _remember_job(job_id, {"status": "running"})
+        threading.Thread(
+            target=_public_review_job,
+            args=(job_id, folder, paths, names, product_spec_text, datasheet_text),
+            daemon=True,
+        ).start()
+        return {"job_id": job_id, "status": "running"}
     try:
-        with tempfile.TemporaryDirectory(prefix="schematic-") as folder:
-            root = Path(folder)
-            paths: list[Path] = []
-            total = 0
-            for index, item in enumerate(schematic):
-                name = Path(item.filename or "").name or f"schematic-{index}.pdf"
-                if Path(name).suffix.lower() != ".pdf":
-                    raise HTTPException(status_code=400, detail="原理图需要是 PDF")
-                payload = await item.read()
-                if not payload:
-                    raise HTTPException(status_code=400, detail="原理图 PDF 是空的")
-                if len(payload) > max_pdf:
-                    raise HTTPException(status_code=400, detail=f"有一份原理图超过 {max_pdf // (1024 * 1024)}MB")
-                total += len(payload)
-                if total > max_total:
-                    raise HTTPException(status_code=400, detail=f"原理图合计超过 {max_total // (1024 * 1024)}MB")
-                safe = "".join("_" if ch in '<>:"/\\|?*' else ch for ch in name).strip()[:80]
-                if not safe.lower().endswith(".pdf"):
-                    safe = f"{safe or 'schematic'}.pdf"
-                dest = root / f"{index:03d}-{safe}"
-                dest.write_bytes(payload)
-                paths.append(dest)
-                names.append(name)
-            result = review_planned(paths, product_spec_text, datasheet_text)
-            try:
-                found = discover_missing_rules(paths)
-            except Exception:
-                found = DiscoveryOutcome(note="规则建议没有生成")
+        return finish_review(paths, names, product_spec_text, datasheet_text)
     except SchematicInputError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except GeminiCallError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    body = result.model_dump()
-    body["filename"] = "、".join(names)
-    note = " ".join(part for part in (result.basis_note.strip(), result.coverage_note.strip()) if part)
-    body["disclaimer"] = f"{note}{DISCLAIMER}" if note else DISCLAIMER
-    body["pending_rules"] = [item.model_dump() for item in found.rules]
-    body["discovery_note"] = found.note
-    return body
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+@router.get("/review/{job_id}")
+def review_status(job_id: str):
+    with _jobs_lock:
+        job = dict(_jobs.get(job_id) or {})
+    if not job:
+        raise HTTPException(status_code=404, detail="这次审查已经不在了。请重新生成。")
+    return job
 
 
 def _sheet_store() -> DatasheetStore:

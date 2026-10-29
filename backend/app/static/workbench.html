@@ -1134,9 +1134,9 @@
       const limits = health.limits || {};
       if (limits.max_files) LIMITS.maxFiles = limits.max_files;
       if (limits.max_pdf_mb) LIMITS.maxPdfBytes = limits.max_pdf_mb * 1024 * 1024;
-      const files = limits.max_files || 8;
-      const pdf = limits.max_pdf_mb || 15;
-      const total = limits.max_total_mb || 40;
+      const files = limits.max_files || 120;
+      const pdf = limits.max_pdf_mb || 40;
+      const total = limits.max_total_mb || 500;
       const lead = document.querySelector("#schematicLead");
       if (lead) {
         lead.textContent = `在线试用一次最多 ${files} 份矢量 PDF，每份不超过 ${pdf}MB，合计不超过 ${total}MB。产品定义和 Datasheet 可以不传。没有这两类时，只按通用规则审查，器件参数标为无法判定。数值由规则引擎比较，其余结论来自模型。请不要上传保密图纸。`;
@@ -1682,8 +1682,38 @@
         filename: data.filename || file.name,
         limit: Number(data.limit) || LIMITS.hardChars,
         tooLong: Boolean(data.too_long),
-        figureNote: role === "datasheet" ? formatFigureNote(data) : ""
+        figureNote: role === "datasheet" ? formatFigureNote(data) : "",
+        figureJob: data.figure_job || ""
       };
+    }
+    async function watchFigures(role, entry, jobId) {
+      const status = document.querySelector(MATERIAL_STATUS[role]);
+      try {
+        while (true) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          const response = await fetch(`/api/schematic/extract/${jobId}`);
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || data.status === "error") {
+            showStatus(status, typeof data.detail === "string" ? data.detail : "识图没有完成。文字层已经留下，可以继续审查。", "warn");
+            return;
+          }
+          if (data.status === "running") continue;
+          const block = String(data.text_block || "").trim();
+          if (block && !String(entry.text || "").includes(block.slice(0, 48))) {
+            entry.text = `${String(entry.text || "").trim()}\n\n${block}`.trim();
+          }
+          entry.figureNote = formatFigureNote(data);
+          const stored = materials[role];
+          if (!stored.diverged) applyMaterialJoin(role);
+          else if (block) setExcerpt(role, `${excerptValue(role).trim()}\n\n${block}`, true);
+          paintFigures();
+          paintMaterialStatus();
+          showStatus(status, data.figure_note || "图中文字已写入摘录，审查可以引用。", "");
+          return;
+        }
+      } catch (error) {
+        showStatus(status, "识图连接中断了。文字层已经留下，可以继续审查。", "warn");
+      }
     }
     async function addMaterialFiles(role, fileList) {
       const incoming = [...fileList];
@@ -1692,6 +1722,7 @@
       stored.entries = stored.entries || [];
       const wasDiverged = stored.diverged;
       const added = [];
+      const pendingFigures = [];
       let tooLong = false;
       for (const file of incoming) {
         if (stored.entries.length >= LIMITS.maxFiles) {
@@ -1716,6 +1747,7 @@
           tooLong = tooLong || data.tooLong || data.text.length > stored.limit;
           stored.entries.push({ name: data.filename, size: file.size, text: data.text, file, figureNote: data.figureNote || "" });
           added.push(stored.entries[stored.entries.length - 1]);
+          if (data.figureJob) pendingFigures.push({ entry: stored.entries[stored.entries.length - 1], job: data.figureJob });
         } catch (error) {
           showStatus(status, "连不上本机工作台。请确认启动脚本还在运行，然后重试。", "bad");
           break;
@@ -1742,6 +1774,11 @@
       }
       paintMaterialButton(role);
       if (role === "datasheet") paintFigures();
+      if (pendingFigures.length) {
+        showStatus(status, "文字已抽出。图还在识别，完成后会补进摘录。现在可以先去做别的。", "");
+        pendingFigures.forEach((item) => watchFigures(role, item.entry, item.job));
+        return;
+      }
       const text = sentText(role);
       if (tooLong || text.length > (stored.limit || LIMITS.hardChars)) {
         showStatus(status, role === "datasheet"
@@ -3015,12 +3052,13 @@
         let failed = false;
         try {
           const response = await fetch("/api/schematic/review", { method: "POST", body, signal: reviewAbort.signal });
-          const data = await response.json().catch(() => ({}));
+          let data = await response.json().catch(() => ({}));
           if (!response.ok) {
             failed = true;
-            showStatus(status, explain(data.detail, "审查没有完成。请看上面的原因，改完后再试。"), "bad");
+            showStatus(status, explain(data.detail, "审查连接中断了。请再试一次。"), "bad");
             return;
           }
+          if (data.job_id && data.status === "running") data = await waitForReview(data.job_id, reviewAbort.signal);
           paintStages(STAGE_LABELS.length);
           const snapshot = await snapshotFrom(data, productText, datasheetText);
           rememberHistory(snapshot);
@@ -3030,7 +3068,8 @@
         } catch (error) {
           failed = true;
           if (error.name === "AbortError") status.textContent = "已取消。可以修改后再生成。";
-          else showStatus(status, "连不上本机工作台。请确认启动脚本还在运行，然后重试。", "bad");
+          else if (error instanceof TypeError) showStatus(status, "连不上试用服务。请确认这台电脑上的试用还开着，然后重试。", "bad");
+          else showStatus(status, explain(error.message, "审查没有完成。请再试一次。"), "bad");
         } finally {
           clearInterval(stageTimer);
           reviewAbort = null;
@@ -3410,6 +3449,26 @@
       }
     }
 
+    async function waitForReview(jobId, signal) {
+      while (true) {
+        await new Promise((resolve, reject) => {
+          const timer = setTimeout(resolve, 2000);
+          const stop = () => {
+            clearTimeout(timer);
+            reject(new DOMException("Aborted", "AbortError"));
+          };
+          if (signal.aborted) { stop(); return; }
+          signal.addEventListener("abort", stop, { once: true });
+        });
+        const response = await fetch(`/api/schematic/review/${jobId}`, { signal });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "审查没有完成。");
+        if (data.status === "running") continue;
+        if (data.status === "error") throw new Error(typeof data.detail === "string" ? data.detail : "审查没有完成。");
+        if (data.status === "done" && data.result) return data.result;
+        throw new Error("审查没有完成。");
+      }
+    }
     async function boot() {
       bind();
       try { applyTrial(await (await fetch("/api/health")).json()); } catch (error) {}
