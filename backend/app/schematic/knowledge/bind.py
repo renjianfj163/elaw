@@ -349,7 +349,11 @@ def _add_signal_groups(circuit: Circuit, bindings: list[Bound], withheld: list[W
             continue
         app = item.constraint.applicability
         role = item.engine.value_text or app.role
-        kind = (app.interface or "").strip().lower()
+        kind = (app.interface or item.engine.interface or "").strip().lower()
+        mode = (item.engine.operating_mode or app.operating_mode or "").strip()
+        selected = (circuit.components[item.refdes].mode or "").strip() if item.refdes in circuit.components else ""
+        if mode and mode != selected:
+            continue
         if not kind or not app.side or not role or not app.pin:
             withheld.append(Withheld(item.constraint, item.refdes, "incomplete"))
             continue
@@ -393,6 +397,9 @@ def _engine(item: DesignConstraint, refdes: str, document: DesignDocument | None
         source_section=item.source_section,
         source_quote=item.source_quote,
         verification_status=item.verification_status,
+        interface=item.applicability.interface,
+        side=item.applicability.side,
+        operating_mode=item.applicability.operating_mode,
     )
 
 

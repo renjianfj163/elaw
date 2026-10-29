@@ -17,6 +17,15 @@ from pathlib import Path
 from app.hashing import stable_hash
 from app.schematic.engine.catalog import load_catalog
 from app.schematic.engine.checks_analog import check_ana_001, check_ana_002, check_reg_001, check_reg_003
+from app.schematic.engine.checks_bus import check_conn_007, check_conn_008, check_conn_009
+from app.schematic.engine.checks_connectivity import (
+    check_conn_001,
+    check_conn_002,
+    check_conn_003,
+    check_conn_004,
+    check_conn_005,
+    check_conn_006,
+)
 from app.schematic.engine.checks_knowledge import check_kn_001
 from app.schematic.engine.checks_power import (
     check_io_001,
@@ -47,7 +56,7 @@ from app.schematic.engine.checks_signal import (
 )
 from app.schematic.engine.dc import CircuitView
 from app.schematic.engine.model import Circuit
-from app.schematic.engine.report import CONFIDENCE, Finding, Report, Run
+from app.schematic.engine.report import CONFIDENCE, Finding, Report, Run, rollup_decision
 
 CHECKERS = {
     "PWR-001": check_pwr_001,
@@ -78,6 +87,15 @@ CHECKERS = {
     "SYS-002": check_sys_002,
     "DOC-001": check_doc_001,
     "KN-001": check_kn_001,
+    "CONN-001": check_conn_001,
+    "CONN-002": check_conn_002,
+    "CONN-003": check_conn_003,
+    "CONN-004": check_conn_004,
+    "CONN-005": check_conn_005,
+    "CONN-006": check_conn_006,
+    "CONN-007": check_conn_007,
+    "CONN-008": check_conn_008,
+    "CONN-009": check_conn_009,
 }
 
 _PDF_NOTE = "连接来自图像识别，待网表确认。"
@@ -168,6 +186,8 @@ def _apply_source(item: Finding, circuit: Circuit) -> None:
         item.assumptions.append(_PDF_NOTE)
     if item.status == "confirmed":
         item.status = "probable"
+        if item.decision == "confirmed_error":
+            item.decision = "needs_review"
     item.confidence = CONFIDENCE[item.status]
 
 
@@ -188,12 +208,14 @@ def _run(rule_id: str, result) -> Run:
         outcome = "findings"
     else:
         outcome = "clear"
+    decision = rollup_decision(result.findings) or result.decision
     return Run(
         rule_id=rule_id,
         applicability=result.applicability,
         outcome=outcome,
         finding_ids=[item.finding_id for item in result.findings],
         note=result.note,
+        decision=decision,
     )
 
 

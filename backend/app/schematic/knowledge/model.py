@@ -67,6 +67,7 @@ class Applicability(BaseModel):
     side: str = ""
     role: str = ""
     condition: str = ""
+    operating_mode: str = ""
 
 
 class DesignDocument(BaseModel):

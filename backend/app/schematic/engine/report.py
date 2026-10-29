@@ -53,6 +53,13 @@ class Finding(BaseModel):
     evidence: Evidence = Field(default_factory=Evidence)
     affected_components: list[str] = Field(default_factory=list)
     affected_nets: list[str] = Field(default_factory=list)
+    affected_pins: list[str] = Field(default_factory=list)
+    traced_path: list[str] = Field(default_factory=list)
+    expected_roles: list[str] = Field(default_factory=list)
+    actual_roles: list[str] = Field(default_factory=list)
+    source_fact_ids: list[str] = Field(default_factory=list)
+    evidence_sources: list[str] = Field(default_factory=list)
+    decision: str = ""
     source_pages: list[int] = Field(default_factory=list)
     datasheet_references: list[str] = Field(default_factory=list)
     constraint_evidence: list[ConstraintEvidence] = Field(default_factory=list)
@@ -83,6 +90,7 @@ class CheckResult(BaseModel):
     applicability: Literal["applicable", "not_applicable", "not_assessable"]
     findings: list[Finding] = Field(default_factory=list)
     note: str = ""
+    decision: str = ""
 
 
 class Run(BaseModel):
@@ -91,6 +99,7 @@ class Run(BaseModel):
     outcome: Literal["clear", "findings", "not_applicable", "not_assessable", "alias"]
     finding_ids: list[str] = Field(default_factory=list)
     note: str = ""
+    decision: str = ""
 
 
 class Report(BaseModel):
@@ -152,6 +161,13 @@ def make_finding(
     device: list[str] | None = None,
     inferences: list[str] | None = None,
     drawing: list[str] | None = None,
+    pins: list[str] | None = None,
+    path: list[str] | None = None,
+    expected: list[str] | None = None,
+    actual: list[str] | None = None,
+    fact_ids: list[str] | None = None,
+    sources: list[str] | None = None,
+    decision: str = "",
 ) -> Finding:
     chosen = status
     evidence_items = [evidence_of(item) for item in (constraints or [])]
@@ -177,6 +193,13 @@ def make_finding(
         ),
         affected_components=components or [],
         affected_nets=nets or [],
+        affected_pins=pins or [],
+        traced_path=path or [],
+        expected_roles=expected or [],
+        actual_roles=actual or [],
+        source_fact_ids=fact_ids or [],
+        evidence_sources=sources or [],
+        decision=decision,
         source_pages=pages or [],
         datasheet_references=references,
         constraint_evidence=evidence_items,
@@ -188,12 +211,30 @@ def make_finding(
     )
 
 
+_DECISION_RANK = (
+    "confirmed_error",
+    "conflicting_constraints",
+    "needs_review",
+    "insufficient_netlist",
+    "missing_pin_role",
+)
+
+
+def rollup_decision(findings: list[Finding]) -> str:
+    present = {item.decision for item in findings if item.decision}
+    for name in _DECISION_RANK:
+        if name in present:
+            return name
+    return ""
+
+
 def finish(findings: list[Finding]) -> CheckResult:
+    decision = rollup_decision(findings)
     if not findings:
-        return CheckResult(applicability="applicable")
+        return CheckResult(applicability="applicable", decision=decision)
     if all(item.status == "not_assessable" for item in findings):
-        return CheckResult(applicability="not_assessable", findings=findings)
-    return CheckResult(applicability="applicable", findings=findings)
+        return CheckResult(applicability="not_assessable", findings=findings, decision=decision)
+    return CheckResult(applicability="applicable", findings=findings, decision=decision)
 
 
 NOT_APPLICABLE = CheckResult(applicability="not_applicable")

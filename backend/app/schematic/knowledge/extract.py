@@ -174,6 +174,7 @@ def _constraint_from(fields: dict[str, str], text: str, pages: dict[int, str], p
             side=fields.get("side", ""),
             role=fields.get("role", ""),
             condition=fields.get("condition", ""),
+            operating_mode=fields.get("operating_mode", ""),
         ),
         parameters=[_parameter(fields, parameter)],
         validation_method=fields.get("validation_method", ""),

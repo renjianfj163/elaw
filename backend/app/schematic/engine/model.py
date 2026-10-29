@@ -66,6 +66,7 @@ class Component(BaseModel):
     clamp_to_supply: bool | None = None
     tolerance_pct: float | None = None
     parameters: dict[str, float] = Field(default_factory=dict)
+    mode: str = ""
 
 
 class Net(BaseModel):
@@ -129,6 +130,9 @@ class Constraint(BaseModel):
     source_section: str = ""
     source_quote: str = ""
     verification_status: str = ""
+    interface: str = ""
+    side: str = ""
+    operating_mode: str = ""
 
 
 class AssemblyOption(BaseModel):

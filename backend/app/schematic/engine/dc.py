@@ -343,7 +343,7 @@ def logic_adjacency(circuit: Circuit, edges: list[Edge]) -> dict[str, set[str]]:
         adjacent[edge.a].add(edge.b)
         adjacent[edge.b].add(edge.a)
     for comp in circuit.components.values():
-        if comp.fitted is False:
+        if comp.fitted is False or comp.role in {"mux", "analog_switch", "isolator"}:
             continue
         for channel in comp.channels:
             a_net = _pin_net(comp, channel.a_pin)

@@ -300,7 +300,7 @@ def test_empty_circuit_is_not_a_pass():
 def test_catalog_matches_the_checkers():
     version, rules = load_catalog()
     assert version == "1"
-    assert len(rules) == 58
+    assert len(rules) == 67
     assert set(CHECKERS) <= {item.rule_id for item in rules}
     text = catalog_path().read_text(encoding="utf-8")
     assert "TXB0108" not in text
