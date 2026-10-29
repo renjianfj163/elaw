@@ -1,0 +1,10 @@
+# 原理图审查用的 Gemini 配置。密钥放在环境变量 GEMINI_API_KEY，不要写进这里。
+# 国内访问走模型设置里的代理；没填时用环境变量 GEMINI_BASE_URL，根地址不要带 /v1beta。
+# 请求不发送 temperature。
+gemini:
+  model: gemini-2.5-pro
+  planner_model: gemini-2.5-flash
+  prompt_version: "schematic-2"
+  retries: 2
+  cache: true
+  max_output_tokens: 8192

@@ -300,6 +300,16 @@ def test_review_api_activates_only_a_verified_clause():
     assert activated.json()["status"] == "active"
     listed = client.get("/api/check-items", params={"status": "active"})
     assert any(row["item_code"] == "ZONE-API" for row in listed.json()["items"])
+    db = SessionFactory()
+    try:
+        document = db.scalar(select(BasisDocument).where(BasisDocument.doc_id == clause.doc_id))
+        if document is not None:
+            for child in db.scalars(select(BasisClause).where(BasisClause.document_id == document.id)):
+                db.delete(child)
+            db.delete(document)
+            db.commit()
+    finally:
+        db.close()
 
 
 def test_sample_cases_for_scope_presence_and_unparsed_images():

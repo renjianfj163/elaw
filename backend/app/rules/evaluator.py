@@ -30,6 +30,13 @@ _UNIT_ALIAS = {
     "uSv/h": "microsievert / hour",
     "μSv/h": "microsievert / hour",
     "µSv/h": "microsievert / hour",
+    "Ω": "ohm",
+    "kΩ": "kiloohm",
+    "MΩ": "megaohm",
+    "µF": "microfarad",
+    "μF": "microfarad",
+    "µH": "microhenry",
+    "μH": "microhenry",
 }
 
 

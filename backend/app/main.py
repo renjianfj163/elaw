@@ -18,6 +18,7 @@ from app.hashing import new_id, utc_now
 from app.laws.seeds import load_seeds
 from app.laws.store import add_report, add_version, confirm_version
 from app.llm.api import router as llm_router
+from app.schematic.api import router as schematic_router
 from app.llm.provider import load_local_config
 from app.local_guard import install_guard
 from app.local_guard import router as guard_router
@@ -37,11 +38,12 @@ if database_url().startswith("sqlite"):
     finally:
         _ready.close()
 
-app = FastAPI(title="环评合规预审")
+app = FastAPI(title="原理图审核")
 app.include_router(basis_router)
 app.include_router(check_router)
 app.include_router(report_router)
 app.include_router(llm_router)
+app.include_router(schematic_router)
 app.include_router(guard_router)
 install_guard(app)
 

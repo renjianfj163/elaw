@@ -13,6 +13,8 @@ dist/
 /libreoffice/
 data/**
 !data/repealed_map.csv
+!data/schematic_rules/
+!data/schematic_rules/packs.json
 *.db
 *.zip
 .DS_Store

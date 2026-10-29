@@ -26,6 +26,11 @@ if (-not (Test-Path $repeal)) { throw "missing data\repealed_map.csv" }
 New-Item -ItemType Directory -Path (Join-Path $stage "data") | Out-Null
 Copy-Item $repeal (Join-Path $stage "data\repealed_map.csv")
 
+$packs = Join-Path $root "data\schematic_rules\packs.json"
+if (-not (Test-Path $packs)) { throw "missing data\schematic_rules\packs.json" }
+New-Item -ItemType Directory -Path (Join-Path $stage "data\schematic_rules") | Out-Null
+Copy-Item $packs (Join-Path $stage "data\schematic_rules\packs.json")
+
 $pyZip = Join-Path $cache $pyZipName
 if (-not (Test-Path $pyZip)) {
   Invoke-WebRequest -Uri $pyUrl -OutFile $pyZip

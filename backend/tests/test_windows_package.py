@@ -19,6 +19,7 @@ def test_package_script_pins_embeddable_python():
     assert "009D6BF7E3B2DDCA3D784FA09F90FE54336D5B60F0E0F305C37F400BF83CFD3B" in script
     assert "requirements-runtime.txt" in script
     assert "repealed_map.csv" in script
+    assert "data\\schematic_rules\\packs.json" in script
     assert '-Directory' in script
     assert "pytest" not in runtime
     assert "psycopg" not in runtime

@@ -201,6 +201,7 @@ Python 3.11、FastAPI、Pydantic v2、SQLite、`python-docx`、`pypdf`（文字�
 
 - `httpx`：调用第 6 节的 DeepSeek 接口
 - `pyyaml`：读取上面的配置
+- `google-genai`：原理图矢量 PDF 的多模态审查。密钥放在环境变量 `GEMINI_API_KEY`，不写入仓库。模型只读图并摘依据原文；数值比较仍走规则引擎。调用前须确认允许外发
 
 现有代码里的 PostgreSQL、`pgvector`、法规站点采集器，与本文件冲突。后续里程碑不要沿用，也不要再加爬虫。
 

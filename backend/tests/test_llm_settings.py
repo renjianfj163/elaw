@@ -148,3 +148,112 @@ def test_ping_reports_the_interface_status_when_the_key_is_rejected(tmp_path, mo
     assert "Authentication Fails" in response.json()["detail"]
     assert "secret-value" not in response.json()["detail"]
     os.environ.pop("DEEPSEEK_API_KEY", None)
+
+
+def test_gemini_settings_keep_the_proxy_and_leave_the_key_out_of_the_file(tmp_path, monkeypatch):
+    monkeypatch.setenv("ELAW_CONFIG_DIR", str(tmp_path))
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_BASE_URL", raising=False)
+    monkeypatch.setattr("app.llm.runtime_env.read_user_env", lambda name: "")
+    (tmp_path / "llm.yaml").write_text(
+        "llm:\n"
+        "  provider: gemini\n"
+        "  base_url: http://108.160.140.173:8443\n"
+        "  model: gemini-2.5-pro\n"
+        "  thinking: enabled\n"
+        "  reasoning_effort: high\n"
+        "  max_tokens: 8192\n"
+        "  response_format: json_object\n"
+        "  retries: 2\n"
+        "  cache: true\n"
+        "  prompt_version: \"2026-10-21\"\n"
+        "  outbound_allowed: true\n",
+        encoding="utf-8",
+    )
+    client = TestClient(app)
+    saved = client.put(
+        "/api/llm/settings",
+        json={
+            "provider": "gemini",
+            "base_url": "http://108.160.140.173:8443/v1beta",
+            "model": "custom-name",
+            "thinking": "enabled",
+            "reasoning_effort": "high",
+            "max_tokens": 8192,
+            "response_format": "json_object",
+            "retries": 2,
+            "cache": True,
+            "prompt_version": "2026-10-21",
+            "outbound_allowed": True,
+            "api_key": "secret-value",
+        },
+    )
+    assert saved.status_code == 200
+    body = saved.json()
+    assert body["provider"] == "gemini"
+    assert body["model"] == "gemini-2.5-pro"
+    assert body["base_url"] == "http://108.160.140.173:8443"
+    assert body["sends_temperature"] is False
+    assert body["api_key_configured"] is True
+    assert body["api_key_env"] == "GEMINI_API_KEY"
+    assert body["presets"]["deepseek"]["model"] == "deepseek-v4-flash"
+    assert body["presets"]["deepseek"]["base_url"] == "https://api.deepseek.com"
+    assert "api_key" not in body
+    stored = (tmp_path / "llm.yaml").read_text(encoding="utf-8")
+    assert "secret-value" not in stored
+    assert "provider: gemini" in stored
+    assert "  base_url: http://108.160.140.173:8443\n" in stored
+    os.environ.pop("GEMINI_API_KEY", None)
+    os.environ.pop("GEMINI_BASE_URL", None)
+
+
+def test_gemini_ping_uses_the_proxy_and_not_temperature(tmp_path, monkeypatch):
+    monkeypatch.setenv("ELAW_CONFIG_DIR", str(tmp_path))
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setattr("app.llm.runtime_env.read_user_env", lambda name: "")
+    seen = {}
+
+    def fake_ping(model, base_url, api_key):
+        seen["model"] = model
+        seen["base_url"] = base_url
+        seen["api_key"] = api_key
+        return '{"ok": true}'
+
+    monkeypatch.setattr("app.llm.api.ping_gemini", fake_ping)
+    client = TestClient(app)
+    response = client.post(
+        "/api/llm/ping",
+        json={
+            "provider": "gemini",
+            "base_url": "http://108.160.140.173:8443/v1beta",
+            "model": "gemini-2.5-pro",
+            "thinking": "enabled",
+            "reasoning_effort": "high",
+            "max_tokens": 8192,
+            "response_format": "json_object",
+            "retries": 2,
+            "cache": True,
+            "prompt_version": "2026-10-21",
+            "outbound_allowed": True,
+            "api_key": "secret-value",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["model"] == "gemini-2.5-pro"
+    assert seen["base_url"] == "http://108.160.140.173:8443"
+    assert seen["api_key"] == "secret-value"
+    assert "secret-value" not in (tmp_path / "llm.yaml").read_text(encoding="utf-8")
+    os.environ.pop("GEMINI_API_KEY", None)
+    os.environ.pop("GEMINI_BASE_URL", None)
+
+
+def test_proxy_falls_back_to_the_previous_user_gateway(monkeypatch):
+    monkeypatch.delenv("GEMINI_BASE_URL", raising=False)
+    monkeypatch.setattr(
+        "app.llm.runtime_env.read_user_env",
+        lambda name: "http://108.160.140.173:8443/v1beta" if name == "GEMINI_BASE_URL" else "",
+    )
+    from app.llm.endpoint import gemini_proxy_base
+
+    assert gemini_proxy_base({"provider": "deepseek"}) == "http://108.160.140.173:8443"
+    os.environ.pop("GEMINI_BASE_URL", None)

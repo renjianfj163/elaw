@@ -13,3 +13,4 @@ python-multipart>=0.0.12
 pytest>=8.0
 rank_bm25>=0.2.2
 jieba>=0.42
+google-genai>=1.0
