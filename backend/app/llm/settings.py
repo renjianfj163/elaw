@@ -35,6 +35,8 @@ class LlmSettingsError(Exception):
 
 
 def public_settings() -> dict:
+    from app.public_trial import NOTICE, enabled, limits_payload
+
     cfg = _normalized(load_llm_config())
     env_name = "GEMINI_API_KEY" if cfg["provider"] == "gemini" else "DEEPSEEK_API_KEY"
     cfg["api_key_configured"] = bool(runtime_env(env_name))
@@ -45,6 +47,10 @@ def public_settings() -> dict:
     }
     cfg["sends_temperature"] = False if cfg["provider"] == "gemini" else cfg["thinking"] != "enabled"
     cfg["presets"] = presets_for(cfg)
+    cfg["public_trial"] = enabled()
+    if enabled():
+        cfg["trial_notice"] = NOTICE
+        cfg["trial_limits"] = limits_payload()
     return cfg
 
 

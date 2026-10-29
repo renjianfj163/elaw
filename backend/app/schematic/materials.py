@@ -11,6 +11,7 @@ from pathlib import Path
 
 from app.schematic.office_text import TextExtractError, extract_docx, extract_pdf
 from app.parse.convert import ConvertError, convert_doc_to_docx
+from app.public_trial import trial_caps
 from app.schematic.review import MAX_BASIS_CHARS, MAX_PDF_BYTES
 
 
@@ -31,8 +32,9 @@ def extract_material(filename: str, data: bytes, role: str, *, read_figures: boo
         raise MaterialError("资料类型无法识别")
     if not data:
         raise MaterialError("文件是空的")
-    if len(data) > MAX_PDF_BYTES:
-        raise MaterialError("文件超过 40MB")
+    cap = MAX_PDF_BYTES if trial_caps() is None else trial_caps()[1]
+    if len(data) > cap:
+        raise MaterialError(f"文件超过 {cap // (1024 * 1024)}MB")
     text = _read(name, suffix, data).strip()
     figures = _figures(data) if role == "datasheet" and read_figures else None
     block = ""

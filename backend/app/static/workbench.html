@@ -71,6 +71,8 @@
     * { box-sizing: border-box; }
     [hidden] { display: none !important; }
     html, body { max-width: 100%; }
+    .trial-banner { background: var(--warn-bg); color: var(--ink); border-bottom: 1px solid var(--line); }
+    .trial-banner p { width: min(var(--header), calc(100% - 32px)); margin: 0 auto; padding: 10px 0; font-size: 14px; }
     body {
       margin: 0;
       overflow-x: clip;
@@ -318,6 +320,28 @@
     }
     .dropzone.over { border-color: var(--primary); background: var(--primary-bg); }
     .dropzone strong { font-weight: 650; }
+    .netlist-drop.has-text {
+      align-items: stretch;
+      justify-content: flex-start;
+      text-align: left;
+      cursor: text;
+    }
+    .netlist-drop.has-text #netlistDropTitle,
+    .netlist-drop.has-text #netlistDropHint { display: none; }
+    .netlist-drop.has-file #netlistDropHint {
+      display: block;
+      width: 100%;
+      text-align: left;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .netlist-form .netlist-drop textarea {
+      border: 0;
+      background: transparent;
+      resize: vertical;
+      padding: 0;
+      min-height: 120px;
+    }
     .file-input {
       position: absolute;
       width: 1px;
@@ -661,7 +685,7 @@
           <div id="privacyPop" class="popover" hidden tabindex="-1">
             <p id="privacyDetail"></p>
             <p>审查结果是草稿，需要人工复核，不构成设计签核。数值是否满足依据由本机规则引擎计算，模型给出的数值结论不会被采用。</p>
-            <p>密钥只留在这次运行的内存里，不会写入配置文件。</p>
+            <p id="privacyKeyLine">密钥只留在这次运行的内存里，不会写入配置文件。</p>
           </div>
         </div>
         <div class="theme-switch" role="group" aria-label="外观">
@@ -683,6 +707,9 @@
       </div>
     </div>
   </header>
+  <div id="trialBanner" class="trial-banner" hidden>
+    <p id="trialBannerText"></p>
+  </div>
   <main>
     <div id="bootSkeleton" class="skeleton" aria-hidden="true">
       <div class="skel-block skel-line"></div>
@@ -695,7 +722,7 @@
           <h1 tabindex="-1">原理图审查</h1>
           <span class="badge warn">草稿 · 需人工复核</span>
         </div>
-        <p class="hint">可以一次上传很多份矢量 PDF，最多 120 份，每份不超过 40MB、800 页，合计不超过 500MB。产品定义和 Datasheet 可以不传。没有这两类时，只按通用规则审查，器件参数标为无法判定。数值由规则引擎比较，其余结论来自模型。</p>
+        <p id="schematicLead" class="hint">可以一次上传很多份矢量 PDF，最多 120 份，每份不超过 40MB、800 页，合计不超过 500MB。产品定义和 Datasheet 可以不传。没有这两类时，只按通用规则审查，器件参数标为无法判定。数值由规则引擎比较，其余结论来自模型。</p>
         <section class="card" aria-labelledby="readyTitle">
           <h2 id="readyTitle">就绪清单</h2>
           <ul id="readyList" class="ready-list"></ul>
@@ -728,8 +755,12 @@
           <h2 id="netlistTitle">用设计约束审查网表</h2>
           <p class="hint">这里使用资料页里已经复核的硬性约束。未复核、互相冲突或缺少额定值时，结论保持待核实或无法判定。</p>
           <form id="netlistForm" class="netlist-form">
-            <label class="hint">网表 JSON<input id="netlistFile" type="file" accept=".json,application/json" /></label>
-            <textarea id="netlistJson" spellcheck="false" placeholder="把网表 JSON 贴在这里，或从上面选择文件" aria-label="网表 JSON"></textarea>
+            <div id="netlistDrop" class="dropzone netlist-drop" tabindex="0" role="button" aria-label="上传网表 Netlist">
+              <strong id="netlistDropTitle">把网表 Netlist 拖到这里</strong>
+              <span id="netlistDropHint">也可以点击选择或粘贴</span>
+              <textarea id="netlistJson" spellcheck="false" hidden aria-label="网表 Netlist"></textarea>
+            </div>
+            <input id="netlistFile" class="file-input" type="file" accept=".json,application/json,text/plain,.txt" tabindex="-1" aria-hidden="true" />
             <div class="actions">
               <button id="netlistBtn" class="btn btn-primary" type="submit">开始约束审查</button>
             </div>
@@ -747,7 +778,7 @@
           <h1 tabindex="-1">资料</h1>
           <p id="materialProgress" class="hint">已提供 0 项，都可以不提供</p>
         </div>
-        <p class="hint">产品定义和 Datasheet 都可以不提供，也可以各传很多份，每类最多 120 份。缺的部分按通用规则审查。抽出后可按章节勾选。全文过长时，生成审查会按图纸再裁一刀，只保留引脚、电源和典型应用相关章节。扫描件请先做成可复制文本。</p>
+        <p id="materialsLead" class="hint">产品定义和 Datasheet 都可以不提供，也可以各传很多份，每类最多 120 份。缺的部分按通用规则审查。抽出后可按章节勾选。全文过长时，生成审查会按图纸再裁一刀，只保留引脚、电源和典型应用相关章节。扫描件请先做成可复制文本。</p>
         <div class="pair">
           <article class="card" id="productCard">
             <header class="card-title"><h2>产品定义（Word）</h2><span id="productBadge" class="badge todo">未就绪</span></header>
@@ -1089,6 +1120,35 @@
       });
     }
 
+    function maxPdfLabel() {
+      return `${Math.round(LIMITS.maxPdfBytes / (1024 * 1024))}MB`;
+    }
+    function applyTrial(health) {
+      if (!health || !health.public_trial) return;
+      document.body.dataset.trial = "1";
+      const banner = document.querySelector("#trialBanner");
+      banner.hidden = false;
+      document.querySelector("#trialBannerText").textContent = health.notice || "";
+      document.querySelector("#openLlm").hidden = true;
+      document.querySelector("#exitBtn").hidden = true;
+      const limits = health.limits || {};
+      if (limits.max_files) LIMITS.maxFiles = limits.max_files;
+      if (limits.max_pdf_mb) LIMITS.maxPdfBytes = limits.max_pdf_mb * 1024 * 1024;
+      const files = limits.max_files || 8;
+      const pdf = limits.max_pdf_mb || 15;
+      const total = limits.max_total_mb || 40;
+      const lead = document.querySelector("#schematicLead");
+      if (lead) {
+        lead.textContent = `在线试用一次最多 ${files} 份矢量 PDF，每份不超过 ${pdf}MB，合计不超过 ${total}MB。产品定义和 Datasheet 可以不传。没有这两类时，只按通用规则审查，器件参数标为无法判定。数值由规则引擎比较，其余结论来自模型。请不要上传保密图纸。`;
+      }
+      const materials = document.querySelector("#materialsLead");
+      if (materials) {
+        materials.textContent = `在线试用时，产品定义和 Datasheet 都可以不提供。要传的话，每类最多 ${files} 份，每份不超过 ${pdf}MB。请不要上传保密资料。抽出后可按章节勾选。扫描件请先做成可复制文本。`;
+      }
+      const keyLine = document.querySelector("#privacyKeyLine");
+      if (keyLine) keyLine.textContent = "试用密钥留在服务器上，这个页面看不到，也不能从这里复制。";
+      paintPrivacy();
+    }
     function currentProvider() {
       return document.querySelector("#llmProvider").value === "deepseek" ? "deepseek" : "gemini";
     }
@@ -1123,6 +1183,18 @@
       return value;
     }
     function paintPrivacy() {
+      if (document.body.dataset.trial === "1") {
+        const chip = document.querySelector("#privacyChip");
+        const text = document.querySelector("#privacyText");
+        const icon = document.querySelector("#privacyIcon");
+        const detail = document.querySelector("#privacyDetail");
+        chip.classList.add("warn");
+        chip.classList.remove("ok");
+        icon.textContent = "⚠";
+        text.textContent = "试用会送去 Gemini";
+        detail.textContent = document.querySelector("#trialBannerText").textContent;
+        return;
+      }
       const outbound = document.querySelector("#llmOutbound").checked;
       const provider = currentProvider();
       const host = hostOf(document.querySelector("#llmBase").value.trim());
@@ -1512,7 +1584,7 @@
     function acceptMaterial(role, file) {
       const name = file.name.toLowerCase();
       if (!file.size) return "文件是空的。请重新导出后再上传。";
-      if (file.size > LIMITS.maxPdfBytes) return "文件超过 40MB。请只保留相关章节后再上传。";
+      if (file.size > LIMITS.maxPdfBytes) return `文件超过 ${maxPdfLabel()}。请只保留相关章节后再上传。`;
       if (role === "product" && !/\.(doc|docx)$/.test(name)) return "这个文件不是 Word。请上传 .doc 或 .docx。扫描件请先做成可复制文本。";
       if (role === "datasheet" && !name.endsWith(".pdf")) return "这个文件不是 PDF。请上传 Datasheet 的 PDF。扫描件请先做 OCR。";
       return "";
@@ -1756,9 +1828,9 @@
       const head = new TextDecoder("latin1").decode(new Uint8Array(await file.slice(0, 8).arrayBuffer()));
       if (!head.startsWith("%PDF")) return { ok: false, reason: "这个文件不是 PDF。请从原理图软件导出 PDF 后再上传。", checks: [{ level: "bad", text: "不是 PDF" }] };
       if (!file.size) return { ok: false, reason: "这个 PDF 是空的。请重新导出后再上传。", checks: [{ level: "bad", text: "空文件" }] };
-      if (file.size > LIMITS.maxPdfBytes) return { ok: false, reason: "这个 PDF 超过 40MB。请拆出与本次审查相关的图页后再上传。", checks: [{ level: "bad", text: "超过 40MB" }] };
+      if (file.size > LIMITS.maxPdfBytes) return { ok: false, reason: `这个 PDF 超过 ${maxPdfLabel()}。请拆出与本次审查相关的图页后再上传。`, checks: [{ level: "bad", text: `超过 ${maxPdfLabel()}` }] };
       if (file.size > LIMITS.pdfInspectBytes) {
-        return { ok: true, note: "文件较大，页数和文字层没有在本地逐页清点。大小仍在 40MB 以内，可以生成。", checks: [{ level: "warn", text: "文件较大，未逐页清点" }], pages: null, keywords: [] };
+        return { ok: true, note: `文件较大，页数和文字层没有在本地逐页清点。大小仍在 ${maxPdfLabel()} 以内，可以生成。`, checks: [{ level: "warn", text: "文件较大，未逐页清点" }], pages: null, keywords: [] };
       }
       await new Promise((resolve) => setTimeout(resolve, 0));
       const stats = scanPdf(new Uint8Array(await file.arrayBuffer()));
@@ -2888,6 +2960,7 @@
         syncProviderChrome();
       });
       bindDrop(document.querySelector("#schematicDrop"), addSchematicFiles, pickSchematic);
+      bindDrop(document.querySelector("#netlistDrop"), (files) => { if (files?.length) readNetlistFile(files[0]); }, pickNetlist);
       bindDrop(document.querySelector("#productDrop"), (files) => addMaterialFiles("product", files), () => pickMaterial("product"));
       bindDrop(document.querySelector("#datasheetDrop"), (files) => addMaterialFiles("datasheet", files), () => pickMaterial("datasheet"));
       document.querySelector("#productFile").addEventListener("change", (event) => { if (event.target.files?.length) addMaterialFiles("product", event.target.files); });
@@ -3057,11 +3130,30 @@
         const button = event.target.closest("[data-verify]");
         if (button) verifyConstraint(button.dataset.verify);
       });
-      document.querySelector("#netlistFile").addEventListener("change", async (event) => {
+      document.querySelector("#netlistFile").addEventListener("change", (event) => {
         const file = event.target.files?.[0];
-        if (!file) return;
-        document.querySelector("#netlistJson").value = await file.text();
+        event.target.value = "";
+        if (file) readNetlistFile(file);
       });
+      document.querySelector("#netlistDrop").addEventListener("paste", (event) => {
+        if (event.target.id === "netlistJson") return;
+        const files = [...(event.clipboardData?.files || [])];
+        const text = event.clipboardData?.getData("text/plain") || "";
+        if (!files.length && !text.trim()) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (files.length) { readNetlistFile(files[0]); return; }
+        netlistFilename = "";
+        document.querySelector("#netlistJson").value = text;
+        paintNetlistBox();
+      });
+      document.querySelector("#netlistJson").addEventListener("input", () => {
+        if (!document.querySelector("#netlistJson").value.trim()) {
+          netlistFilename = "";
+          paintNetlistBox();
+        }
+      });
+      document.querySelector("#netlistJson").addEventListener("keydown", (event) => event.stopPropagation());
       document.querySelector("#netlistForm").addEventListener("submit", reviewNetlist);
     }
 
@@ -3076,6 +3168,15 @@
     const EFFECTIVE_LABEL = { current: "当前有效", superseded: "已停用", applicability_unconfirmed: "适用性待确认" };
     const PARSE_LABEL = { parsed: "已抽出条目", partial: "部分页面没有文字", not_parsed: "没有抽出文字", needs_review: "解析需要复核" };
     const FINDING_STATUS = { confirmed: "已确认", probable: "可能", needs_review: "待核实", not_assessable: "无法判定", cleared: "已排除" };
+    const DECISION_LABEL = {
+      confirmed_error: "确定错误",
+      confirmed_ok: "确定正常",
+      needs_review: "待核实",
+      insufficient_netlist: "网表不完整",
+      missing_pin_role: "缺少已复核角色",
+      conflicting_constraints: "约束冲突",
+      not_applicable: "不适用"
+    };
     const FINDING_SEV = { critical: "严重", high: "高", medium: "中", low: "低", info: "提示" };
     const VERDICT_LABEL = { findings: "有发现", not_assessable: "无法判定", no_applicable_rules: "没有适用规则", clear: "没有确定问题" };
 
@@ -3215,6 +3316,7 @@
         return `<article class="issue">
           <header class="issue-head">
             <span class="badge ${item.status === "confirmed" ? "error" : "warn"}">${escapeHtml(FINDING_STATUS[item.status] || item.status)}</span>
+            ${item.decision ? `<span class="badge">${escapeHtml(DECISION_LABEL[item.decision] || item.decision)}</span>` : ""}
             <span class="badge">${escapeHtml(FINDING_SEV[item.severity] || item.severity || "")}</span>
             <strong class="mono">${escapeHtml(item.rule_id || "")}</strong>
             <span>${escapeHtml(item.title || "")}</span>
@@ -3222,7 +3324,11 @@
           <p>${escapeHtml(item.description || "")}</p>
           <dl class="evidence">
             <div><dt>器件</dt><dd>${escapeHtml((item.affected_components || []).join("、") || "未标位号")}</dd></div>
+            ${(item.affected_pins || []).length ? `<div><dt>引脚</dt><dd>${escapeHtml(item.affected_pins.join("、"))}</dd></div>` : ""}
             <div><dt>网络</dt><dd>${escapeHtml((item.affected_nets || []).join("、") || "未标网络")}</dd></div>
+            ${(item.traced_path || []).length ? `<div><dt>路径</dt><dd>${escapeHtml(item.traced_path.join(" → "))}</dd></div>` : ""}
+            ${(item.expected_roles || []).length ? `<div><dt>预期</dt><dd>${escapeHtml(item.expected_roles.join("、"))}</dd></div>` : ""}
+            ${(item.actual_roles || []).length ? `<div><dt>实际</dt><dd>${escapeHtml(item.actual_roles.join("、"))}</dd></div>` : ""}
             <div><dt>图纸</dt><dd>${escapeHtml(pages)}</dd></div>
             ${(item.required_missing_inputs || []).length ? `<div><dt>缺少</dt><dd>${escapeHtml(item.required_missing_inputs.join("、"))}</dd></div>` : ""}
           </dl>
@@ -3231,23 +3337,61 @@
         </article>`;
       }).join("");
       const limits = (report.limits || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+      const decisions = (report.runs || [])
+        .filter((item) => item.decision && String(item.rule_id || "").startsWith("CONN-"))
+        .map((item) => `${escapeHtml(item.rule_id)} ${escapeHtml(DECISION_LABEL[item.decision] || item.decision)}`)
+        .join("；");
       document.querySelector("#knowledgeResult").innerHTML = `
         <p class="hint">结论：${escapeHtml(VERDICT_LABEL[report.verdict] || report.verdict || "")}</p>
+        ${decisions ? `<p class="hint">连接检查：${decisions}</p>` : ""}
         ${cards || `<div class="empty"><p>这次没有列出问题。</p></div>`}
         ${limits ? `<ul class="hint">${limits}</ul>` : ""}`;
+    }
+    let netlistFilename = "";
+    function paintNetlistBox() {
+      const box = document.querySelector("#netlistJson");
+      const zone = document.querySelector("#netlistDrop");
+      const title = document.querySelector("#netlistDropTitle");
+      const hint = document.querySelector("#netlistDropHint");
+      const filled = Boolean(box.value.trim());
+      box.hidden = !filled;
+      zone.classList.toggle("has-text", filled);
+      zone.classList.toggle("has-file", filled && Boolean(netlistFilename));
+      if (!filled) {
+        netlistFilename = "";
+        title.textContent = "把网表 Netlist 拖到这里";
+        hint.textContent = "也可以点击选择或粘贴";
+        zone.setAttribute("role", "button");
+        zone.setAttribute("aria-label", "上传网表 Netlist");
+        return;
+      }
+      zone.removeAttribute("role");
+      zone.removeAttribute("aria-label");
+      hint.textContent = netlistFilename;
+    }
+    function pickNetlist() {
+      const box = document.querySelector("#netlistJson");
+      if (!box.hidden && document.activeElement === box) return;
+      document.querySelector("#netlistFile").click();
+    }
+    async function readNetlistFile(file) {
+      if (!file) return;
+      netlistFilename = file.name || "";
+      document.querySelector("#netlistJson").value = await file.text();
+      paintNetlistBox();
     }
     async function reviewNetlist(event) {
       event.preventDefault();
       const button = document.querySelector("#netlistBtn");
       const raw = document.querySelector("#netlistJson").value.trim();
       if (!raw) {
-        toast("请先贴上网表 JSON。");
+        toast("请先贴上网表 Netlist。");
         return;
       }
       let circuit;
       try { circuit = JSON.parse(raw); }
       catch (error) {
-        toast("网表 JSON 读不出来。");
+        toast("网表 Netlist 读不出来。");
         return;
       }
       button.disabled = true;
@@ -3268,6 +3412,7 @@
 
     async function boot() {
       bind();
+      try { applyTrial(await (await fetch("/api/health")).json()); } catch (error) {}
       restoreMaterials();
       showAwaiting();
       paintHistory();

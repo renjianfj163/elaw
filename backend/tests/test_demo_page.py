@@ -17,3 +17,7 @@ def test_public_demo_page_stays_local_and_fictional():
     assert "长庚" not in text
     assert "127.0.0.1" not in text
     assert "fetch(" not in text
+    assert "这个下载页不接收文件" in text
+    assert "送去 Gemini" in text
+    assert "请不要上传保密图纸" in text
+    assert "页面里看不到密钥" in text

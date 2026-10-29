@@ -25,6 +25,10 @@ _before_exit: list = []
 
 
 def guard_enabled() -> bool:
+    from app.public_trial import enabled
+
+    if enabled():
+        return False
     return os.environ.get("ELAW_GUARD", "1") != "0"
 
 

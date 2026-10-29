@@ -1,0 +1,19 @@
+services:
+  trial:
+    build: ./backend
+    environment:
+      ELAW_PUBLIC: "1"
+      ELAW_GUARD: "0"
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      DATABASE_URL: sqlite:////data/elaw.db
+      DATA_DIR: /data
+      ELAW_CONFIG_DIR: /config
+    volumes:
+      - ./config:/config:ro
+      - trialdata:/data
+    ports:
+      - "8000:8000"
+    command: ["python", "-m", "app.public_serve"]
+
+volumes:
+  trialdata:

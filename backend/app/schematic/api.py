@@ -24,6 +24,7 @@ from app.schematic.engine.model import Circuit
 from app.schematic.knowledge.model import DocumentKind, KnowledgeError
 from app.schematic.knowledge.review import review_with_knowledge
 from app.schematic.knowledge.store import open_default_store
+from app.public_trial import oversized_detail, trial_caps
 from app.schematic.review import (
     MAX_BASIS_CHARS,
     MAX_PDF_BYTES,
@@ -35,6 +36,19 @@ from app.schematic.review import (
 router = APIRouter(prefix="/api/schematic", tags=["schematic"])
 
 DISCLAIMER = "辅助预审，不构成设计签核。审查项为草稿，需人工复核。"
+
+
+def _upload_caps() -> tuple[int, int, int]:
+    found = trial_caps()
+    if found is None:
+        return MAX_SCHEMATIC_FILES, MAX_PDF_BYTES, MAX_TOTAL_PDF_BYTES
+    return found
+
+
+def _reject_oversized(size: int) -> None:
+    detail = oversized_detail(size)
+    if detail:
+        raise HTTPException(status_code=400, detail=detail)
 
 
 class DatasheetQuery(BaseModel):
@@ -50,6 +64,7 @@ async def extract(
 ):
     name = Path(file.filename or "").name or "upload"
     payload = await file.read()
+    _reject_oversized(len(payload))
     enabled = read_figures.strip().lower() in {"1", "true", "yes", "on"}
     try:
         return extract_material(name, payload, role, read_figures=enabled and role == "datasheet")
@@ -63,10 +78,11 @@ async def review(
     product_spec_text: str = Form(""),
     datasheet_text: str = Form(""),
 ):
+    max_files, max_pdf, max_total = _upload_caps()
     if not schematic:
         raise HTTPException(status_code=400, detail="请上传原理图 PDF")
-    if len(schematic) > MAX_SCHEMATIC_FILES:
-        raise HTTPException(status_code=400, detail=f"原理图一次最多 {MAX_SCHEMATIC_FILES} 份")
+    if len(schematic) > max_files:
+        raise HTTPException(status_code=400, detail=f"原理图一次最多 {max_files} 份")
     names: list[str] = []
     try:
         with tempfile.TemporaryDirectory(prefix="schematic-") as folder:
@@ -80,11 +96,11 @@ async def review(
                 payload = await item.read()
                 if not payload:
                     raise HTTPException(status_code=400, detail="原理图 PDF 是空的")
-                if len(payload) > MAX_PDF_BYTES:
-                    raise HTTPException(status_code=400, detail="有一份原理图超过 40MB")
+                if len(payload) > max_pdf:
+                    raise HTTPException(status_code=400, detail=f"有一份原理图超过 {max_pdf // (1024 * 1024)}MB")
                 total += len(payload)
-                if total > MAX_TOTAL_PDF_BYTES:
-                    raise HTTPException(status_code=400, detail="原理图合计超过 500MB")
+                if total > max_total:
+                    raise HTTPException(status_code=400, detail=f"原理图合计超过 {max_total // (1024 * 1024)}MB")
                 safe = "".join("_" if ch in '<>:"/\\|?*' else ch for ch in name).strip()[:80]
                 if not safe.lower().endswith(".pdf"):
                     safe = f"{safe or 'schematic'}.pdf"
@@ -142,6 +158,7 @@ async def upload_datasheet(mpn: str = Form(...), file: UploadFile = File(...)):
     from app.llm.provider import load_llm_config
 
     data = await file.read()
+    _reject_oversized(len(data))
     allow = bool(load_llm_config().get("outbound_allowed"))
     verifier = None
     if allow:
@@ -172,6 +189,7 @@ async def import_knowledge(
     store = open_default_store()
     filename = Path(file.filename or "").name if file is not None else ""
     payload = await file.read() if file is not None else b""
+    _reject_oversized(len(payload))
     try:
         if payload and filename.lower().endswith(".pdf"):
             from app.schematic.datasheet_figures import (

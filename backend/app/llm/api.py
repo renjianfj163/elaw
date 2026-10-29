@@ -27,6 +27,10 @@ def read_settings():
 
 @router.put("/settings")
 def write_settings(body: LlmSettingsIn):
+    from app.public_trial import enabled
+
+    if enabled():
+        raise HTTPException(status_code=403, detail="在线试用的模型已经配好，不能在这里修改。")
     try:
         return save_settings(body)
     except (LlmSettingsError, ValidationError) as exc:
@@ -35,8 +39,12 @@ def write_settings(body: LlmSettingsIn):
 
 @router.post("/ping")
 async def ping(request: Request):
+    from app.public_trial import enabled
+
     raw = await request.body()
-    if raw.strip():
+    if enabled():
+        cfg = public_settings()
+    elif raw.strip():
         try:
             body = LlmSettingsIn.model_validate_json(raw)
             cfg = save_settings(body)
