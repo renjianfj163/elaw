@@ -335,5 +335,7 @@ def test_workbench_asks_for_figure_reading_without_mixing_it_into_the_excerpt():
 
     html = Path(__file__).parents[1].joinpath("app", "static", "workbench.html").read_text(encoding="utf-8")
     assert 'id="datasheetFigures"' in html
+    assert 'id="datasheetSpinner"' in html
+    assert "正在识图，已等待" in html
     assert 'body.set("read_figures", "1")' in html
     assert "图中文字已写入摘录" in html

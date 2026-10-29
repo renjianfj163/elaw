@@ -118,6 +118,12 @@
       color: var(--primary-ink);
       border-color: transparent;
     }
+    button.btn-secondary.is-busy:disabled {
+      cursor: progress;
+      color: var(--ink);
+      background: var(--card);
+      border-color: var(--primary);
+    }
     .spinner {
       width: 16px;
       height: 16px;
@@ -383,6 +389,14 @@
     }
     .callout.bad { border-color: var(--bad); background: var(--bad-bg); color: var(--bad); }
     .callout.warn { border-color: var(--warn); background: var(--warn-bg); color: var(--warn); }
+    .callout.wait {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-2);
+      border-color: var(--primary);
+      background: var(--primary-bg);
+      color: var(--ink);
+    }
     #datasheetFigures { white-space: pre-wrap; }
     .ready-list { list-style: none; padding: 0; margin: var(--space-2) 0 0; }
     .ready-row {
@@ -789,7 +803,7 @@
             <input id="productFile" class="file-input" type="file" accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple tabindex="-1" aria-hidden="true" />
             <div id="productFileCard" hidden></div>
             <p id="productStatus" class="hint" aria-live="polite"></p>
-            <p class="file-actions"><button type="button" id="productBtn" class="btn btn-secondary" disabled>抽出文字</button></p>
+            <p class="file-actions"><button type="button" id="productBtn" class="btn btn-secondary" disabled aria-busy="false"><span class="spinner" id="productSpinner" hidden aria-hidden="true"></span><span id="productBtnLabel">抽出文字</span></button></p>
             <p id="productScan" class="callout warn" hidden></p>
             <div id="productChapters" hidden></div>
             <div class="editor" data-editor="product">
@@ -825,7 +839,7 @@
             <input id="datasheetFile" class="file-input" type="file" accept=".pdf,application/pdf" multiple tabindex="-1" aria-hidden="true" />
             <div id="datasheetFileCard" hidden></div>
             <p id="datasheetStatus" class="hint" aria-live="polite"></p>
-            <p class="file-actions"><button type="button" id="datasheetBtn" class="btn btn-secondary" disabled>抽出文字</button></p>
+            <p class="file-actions"><button type="button" id="datasheetBtn" class="btn btn-secondary" disabled aria-busy="false"><span class="spinner" id="datasheetSpinner" hidden aria-hidden="true"></span><span id="datasheetBtnLabel">抽出文字</span></button></p>
             <p id="datasheetScan" class="callout warn" hidden></p>
             <p id="datasheetFigures" class="callout warn" hidden></p>
             <div id="datasheetChapters" hidden></div>
@@ -997,6 +1011,7 @@
     let toastTimer = 0;
     let sheetLookupToken = 0;
     let sheetTarget = "";
+    let figureWaitTimer = 0;
     const llmKept = { provider: "gemini", model: "gemini-3.5-flash", max_tokens: 8192, retries: 2, cache: true, prompt_version: "2026-10-21", outbound_allowed: true, api_key_configured: false };
     let llmPresets = {
       gemini: { model: "gemini-3.5-flash", base_url: "http://108.160.140.173:8443", label: "Gemini · gemini-3.5-flash" },
@@ -1345,13 +1360,68 @@
       if (!head && !lines.length) return "";
       return [head, ...lines].join("\n\n");
     }
+    function datasheetWaiting() {
+      const stored = materials.datasheet;
+      return Boolean(stored.busy) || (stored.figuresPending || 0) > 0;
+    }
+    function ensureFigureWaitTimer() {
+      if (figureWaitTimer) return;
+      figureWaitTimer = setInterval(() => {
+        if (!datasheetWaiting()) {
+          clearInterval(figureWaitTimer);
+          figureWaitTimer = 0;
+          return;
+        }
+        paintFigureWait();
+      }, 1000);
+    }
+    function stopFigureWaitTimer() {
+      clearInterval(figureWaitTimer);
+      figureWaitTimer = 0;
+    }
+    function paintFigureWait() {
+      const el = document.querySelector("#datasheetFigures");
+      if (!el || !datasheetWaiting()) return;
+      const stored = materials.datasheet;
+      const elapsed = stored.figureWaitStarted
+        ? Math.max(0, Math.round((Date.now() - stored.figureWaitStarted) / 1000))
+        : 0;
+      const pending = stored.figuresPending || 0;
+      const detail = pending
+        ? `正在识图，已等待 ${formatWait(elapsed)}。文字已经抽出，读完会写在这里。`
+        : `正在抽出并识图，已等待 ${formatWait(elapsed)}。`;
+      el.hidden = false;
+      el.className = "callout wait";
+      el.replaceChildren();
+      const spinner = document.createElement("span");
+      spinner.className = "spinner";
+      spinner.setAttribute("aria-hidden", "true");
+      const text = document.createElement("span");
+      text.textContent = detail;
+      el.append(spinner, text);
+    }
+    function beginDatasheetWait() {
+      if (!materials.datasheet.figureWaitStarted) materials.datasheet.figureWaitStarted = Date.now();
+      ensureFigureWaitTimer();
+      paintFigureWait();
+    }
+    function finishDatasheetWaitIfIdle() {
+      if (datasheetWaiting()) return;
+      materials.datasheet.figureWaitStarted = 0;
+      stopFigureWaitTimer();
+    }
     function paintFigures() {
       const el = document.querySelector("#datasheetFigures");
       if (!el) return;
+      if (datasheetWaiting()) {
+        paintFigureWait();
+        return;
+      }
       const entries = materials.datasheet.entries || [];
       const fromEntries = entries.map((item) => item.figureNote || "").filter(Boolean).join("\n\n");
       const note = entries.length ? fromEntries : (materials.datasheet.figuresNote || "");
       materials.datasheet.figuresNote = note;
+      el.className = "callout warn";
       el.hidden = !note;
       el.textContent = note;
     }
@@ -1396,11 +1466,22 @@
     function paintMaterialButton(role) {
       const button = document.querySelector(MATERIAL_BUTTON[role]);
       if (!button) return;
-      const hasFile = Boolean((materials[role].entries || []).length || materials[role].file || materials[role].filename);
-      button.disabled = !hasFile || materials[role].busy;
-      const busyLabel = role === "datasheet" ? "正在抽出并识图" : "正在抽出";
-      button.textContent = materials[role].busy ? busyLabel : hasFile ? "重新抽出" : "抽出文字";
-      const attention = Boolean(materials[role].file) && !materials[role].rawText;
+      const stored = materials[role];
+      const hasFile = Boolean((stored.entries || []).length || stored.file || stored.filename);
+      const figures = role === "datasheet" && (stored.figuresPending || 0) > 0;
+      const waiting = Boolean(stored.busy) || figures;
+      button.disabled = !hasFile || waiting;
+      button.classList.toggle("is-busy", waiting);
+      button.setAttribute("aria-busy", waiting ? "true" : "false");
+      const spinner = document.querySelector(`#${role}Spinner`);
+      if (spinner) spinner.hidden = !waiting;
+      const label = document.querySelector(`#${role}BtnLabel`);
+      let text = hasFile ? "重新抽出" : "抽出文字";
+      if (stored.busy && role === "datasheet") text = "正在抽出并识图";
+      else if (stored.busy) text = "正在抽出";
+      else if (figures) text = "正在识图";
+      if (label) label.textContent = text;
+      const attention = Boolean(stored.file) && !stored.rawText && !waiting;
       button.classList.toggle("btn-primary", attention);
       button.classList.toggle("btn-secondary", !attention);
     }
@@ -1686,8 +1767,17 @@
         figureJob: data.figure_job || ""
       };
     }
+    function queueFigureJobs(jobs) {
+      if (!jobs.length) return;
+      const stored = materials.datasheet;
+      stored.figuresPending = (stored.figuresPending || 0) + jobs.length;
+      beginDatasheetWait();
+      paintMaterialButton("datasheet");
+      jobs.forEach((item) => watchFigures("datasheet", item.entry, item.job));
+    }
     async function watchFigures(role, entry, jobId) {
       const status = document.querySelector(MATERIAL_STATUS[role]);
+      let doneNote = "";
       try {
         while (true) {
           await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -1697,22 +1787,30 @@
             showStatus(status, typeof data.detail === "string" ? data.detail : "识图没有完成。文字层已经留下，可以继续审查。", "warn");
             return;
           }
-          if (data.status === "running") continue;
+          if (data.status === "running") {
+            paintFigureWait();
+            continue;
+          }
           const block = String(data.text_block || "").trim();
           if (block && !String(entry.text || "").includes(block.slice(0, 48))) {
             entry.text = `${String(entry.text || "").trim()}\n\n${block}`.trim();
           }
           entry.figureNote = formatFigureNote(data);
+          doneNote = data.figure_note || "图中文字已写入摘录，审查可以引用。";
           const stored = materials[role];
           if (!stored.diverged) applyMaterialJoin(role);
           else if (block) setExcerpt(role, `${excerptValue(role).trim()}\n\n${block}`, true);
-          paintFigures();
-          paintMaterialStatus();
-          showStatus(status, data.figure_note || "图中文字已写入摘录，审查可以引用。", "");
           return;
         }
       } catch (error) {
         showStatus(status, "识图连接中断了。文字层已经留下，可以继续审查。", "warn");
+      } finally {
+        const stored = materials.datasheet;
+        stored.figuresPending = Math.max(0, (stored.figuresPending || 1) - 1);
+        finishDatasheetWaitIfIdle();
+        paintFigures();
+        paintMaterialStatus();
+        if (doneNote && !stored.figuresPending) showStatus(status, doneNote, "");
       }
     }
     async function addMaterialFiles(role, fileList) {
@@ -1733,6 +1831,7 @@
         if (problem) { showStatus(status, problem, "bad"); continue; }
         if (stored.entries.some((item) => item.name === file.name && item.size === file.size)) continue;
         stored.busy = true;
+        if (role === "datasheet") beginDatasheetWait();
         paintMaterialButton(role);
         showStatus(status, `正在抽出 ${file.name}`, "");
         try {
@@ -1755,6 +1854,7 @@
       }
       stored.busy = false;
       if (!added.length) {
+        finishDatasheetWaitIfIdle();
         paintMaterialButton(role);
         paintMaterialStatus();
         return;
@@ -1776,9 +1876,10 @@
       if (role === "datasheet") paintFigures();
       if (pendingFigures.length) {
         showStatus(status, "文字已抽出。图还在识别，完成后会补进摘录。现在可以先去做别的。", "");
-        pendingFigures.forEach((item) => watchFigures(role, item.entry, item.job));
+        queueFigureJobs(pendingFigures);
         return;
       }
+      finishDatasheetWaitIfIdle();
       const text = sentText(role);
       if (tooLong || text.length > (stored.limit || LIMITS.hardChars)) {
         showStatus(status, role === "datasheet"
@@ -1794,7 +1895,12 @@
       const entries = (stored.entries || []).filter((item) => item.file);
       if (!entries.length) { pickMaterial(role); return; }
       const status = document.querySelector(MATERIAL_STATUS[role]);
+      const pendingFigures = [];
       stored.busy = true;
+      if (role === "datasheet") {
+        stored.figureWaitStarted = Date.now();
+        beginDatasheetWait();
+      }
       paintMaterialButton(role);
       for (const entry of entries) {
         showStatus(status, `正在抽出 ${entry.name}`, "");
@@ -1803,23 +1909,38 @@
           if (data.error) {
             showStatus(status, data.error, "bad");
             stored.busy = false;
+            finishDatasheetWaitIfIdle();
             paintMaterialButton(role);
+            paintFigures();
             return;
           }
           entry.text = data.text;
-          entry.figureNote = data.figureNote || "";
           entry.name = data.filename || entry.name;
           stored.limit = data.limit;
+          if (data.figureJob) {
+            entry.figureNote = "";
+            pendingFigures.push({ entry, job: data.figureJob });
+          } else {
+            entry.figureNote = data.figureNote || "";
+          }
         } catch (error) {
           showStatus(status, "连不上本机工作台。请确认启动脚本还在运行，然后重试。", "bad");
           stored.busy = false;
+          finishDatasheetWaitIfIdle();
           paintMaterialButton(role);
+          paintFigures();
           return;
         }
       }
       stored.busy = false;
       stored.diverged = false;
       applyMaterialJoin(role);
+      if (pendingFigures.length) {
+        showStatus(status, "文字已抽出。图还在识别，完成后会补进摘录。现在可以先去做别的。", "");
+        queueFigureJobs(pendingFigures);
+        return;
+      }
+      finishDatasheetWaitIfIdle();
       showStatus(status, role === "datasheet" && materials.datasheet.figuresNote
         ? "已重新抽出。图中文字已写入摘录，审查可以引用。"
         : `已重新抽出 ${entries.length} 份。`, "");
