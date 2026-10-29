@@ -215,6 +215,24 @@
       "rationale": "主控芯片在上电及复位期间 GPIO 通常处于高阻态，栅极缺少下拉电阻可能导致场效应管误导通。",
       "status": "accepted",
       "rules_sha256": "737283e5e03bc665fdd59497ca9c573b8697e82464a9cc2e6f0691ac37e6938c"
+    },
+    {
+      "id": "02f195aa-86b9-4a59-b5f5-fc59b9060f6c",
+      "suggested_tag": "high_speed_digital",
+      "text": "SDIO 与 SD 卡总线的命令线和数据线上应配置确定的上拉电阻，以确保总线空闲时维持稳定高电平。",
+      "trigger_context": "包含 SDIO 或 SD 卡总线接口的电路",
+      "rationale": "SD 和 SDIO 总线规范要求 CMD 与 DAT 信号在空闲状态下保持高电平，防止线路悬空引发误触发或噪声干扰。",
+      "status": "accepted",
+      "rules_sha256": "aeaf9173d686a07875ea0a92faaa2b061bd2e0d56b9dffcccec8917c23e54439"
+    },
+    {
+      "id": "cf18cd5a-f3d3-49e0-bbc1-b4b6bca7a1ba",
+      "suggested_tag": "high_speed_digital",
+      "text": "激光驱动器与大功率发光器件的使能控制引脚应配置确定的默认关断电阻，以保证上电和复位期间处于关闭状态。",
+      "trigger_context": "激光驱动器或大功率光电组件控制电路",
+      "rationale": "主控芯片上电复位过程中 I/O 引脚处于高阻态，默认关断电阻可避免驱动芯片误开启引发安全隐患或器件损坏。",
+      "status": "accepted",
+      "rules_sha256": "aeaf9173d686a07875ea0a92faaa2b061bd2e0d56b9dffcccec8917c23e54439"
     }
   ]
 }
