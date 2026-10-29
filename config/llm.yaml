@@ -3,7 +3,7 @@
 llm:
   provider: gemini
   base_url: http://108.160.140.173:8443
-  model: gemini-2.5-pro
+  model: gemini-3.5-flash
   thinking: enabled
   reasoning_effort: high
   max_tokens: 8192
@@ -11,4 +11,4 @@ llm:
   retries: 2
   cache: true
   prompt_version: "2026-10-21"
-  outbound_allowed: false
+  outbound_allowed: true

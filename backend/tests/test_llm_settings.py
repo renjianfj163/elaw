@@ -191,7 +191,7 @@ def test_gemini_settings_keep_the_proxy_and_leave_the_key_out_of_the_file(tmp_pa
     assert saved.status_code == 200
     body = saved.json()
     assert body["provider"] == "gemini"
-    assert body["model"] == "gemini-2.5-pro"
+    assert body["model"] == "gemini-3.5-flash"
     assert body["base_url"] == "http://108.160.140.173:8443"
     assert body["sends_temperature"] is False
     assert body["api_key_configured"] is True
@@ -239,7 +239,7 @@ def test_gemini_ping_uses_the_proxy_and_not_temperature(tmp_path, monkeypatch):
         },
     )
     assert response.status_code == 200
-    assert response.json()["model"] == "gemini-2.5-pro"
+    assert response.json()["model"] == "gemini-3.5-flash"
     assert seen["base_url"] == "http://108.160.140.173:8443"
     assert seen["api_key"] == "secret-value"
     assert "secret-value" not in (tmp_path / "llm.yaml").read_text(encoding="utf-8")

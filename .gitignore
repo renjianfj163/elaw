@@ -15,6 +15,8 @@ data/**
 !data/repealed_map.csv
 !data/schematic_rules/
 !data/schematic_rules/packs.json
+!data/schematic_rules/engine_catalog.json
+!data/schematic_rules/pending.json
 *.db
 *.zip
 .DS_Store

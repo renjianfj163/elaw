@@ -1,0 +1,60 @@
+合成测试资料，不是厂商原文，也不对应任何真实芯片手册。
+型号 SYN-SOM-180。本文件只用来验证设计约束能否进入原理图审查。
+
+GPIO12 absolute maximum voltage is 1.8 V.
+Host SDIO D0 is pin 1.
+Host SDIO D1 is pin 2.
+
+:::constraint
+id: syn-som-gpio12-abs
+category: electrical
+title: GPIO12 绝对最大电压
+constraint_type: hard_limit
+description: GPIO12 的绝对最大电压为 1.8 V。
+parameter: abs_max_v
+max: 1.8
+unit: V
+mpn: SYN-SOM-180
+pin: 12
+pin_name: GPIO12
+source_page: 2
+source_section: 3.2 GPIO bank
+validation_method: compare_voltage
+quote: GPIO12 absolute maximum voltage is 1.8 V.
+:::
+
+:::constraint
+id: syn-som-sdio-d0
+category: interface
+title: SDIO D0 主机引脚
+constraint_type: hard_limit
+description: 主机 SDIO D0 在引脚 1。
+parameter: pin_role
+value_text: d0
+interface: sdio
+side: host
+pin: 1
+mpn: SYN-SOM-180
+source_page: 2
+source_section: 4.1 SDIO
+validation_method: pin_map
+quote: Host SDIO D0 is pin 1.
+:::
+
+:::constraint
+id: syn-som-sdio-d1
+category: interface
+title: SDIO D1 主机引脚
+constraint_type: hard_limit
+description: 主机 SDIO D1 在引脚 2。
+parameter: pin_role
+value_text: d1
+interface: sdio
+side: host
+pin: 2
+mpn: SYN-SOM-180
+source_page: 2
+source_section: 4.1 SDIO
+validation_method: pin_map
+quote: Host SDIO D1 is pin 2.
+:::

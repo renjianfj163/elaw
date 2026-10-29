@@ -1,8 +1,8 @@
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 $root = Split-Path -Parent $PSScriptRoot
-$stage = Join-Path $root "dist\hospital-eia-windows"
-$zip = Join-Path $root "dist\hospital-eia-windows.zip"
+$stage = Join-Path $root "dist\schematic-windows"
+$zip = Join-Path $root "dist\schematic-windows.zip"
 $cache = Join-Path $root "dist\cache"
 $pyVersion = "3.11.9"
 $pyZipName = "python-$pyVersion-embed-amd64.zip"
@@ -21,15 +21,13 @@ Get-ChildItem (Join-Path $stage "docs") -Directory -ErrorAction SilentlyContinue
 if (Get-ChildItem (Join-Path $stage "docs") -Directory -ErrorAction SilentlyContinue) { throw "sample document folders were copied into the package" }
 if (Test-Path (Join-Path $stage ".env")) { throw ".env was copied into the package" }
 
-$repeal = Join-Path $root "data\repealed_map.csv"
-if (-not (Test-Path $repeal)) { throw "missing data\repealed_map.csv" }
-New-Item -ItemType Directory -Path (Join-Path $stage "data") | Out-Null
-Copy-Item $repeal (Join-Path $stage "data\repealed_map.csv")
-
 $packs = Join-Path $root "data\schematic_rules\packs.json"
 if (-not (Test-Path $packs)) { throw "missing data\schematic_rules\packs.json" }
+$catalog = Join-Path $root "data\schematic_rules\engine_catalog.json"
+if (-not (Test-Path $catalog)) { throw "missing data\schematic_rules\engine_catalog.json" }
 New-Item -ItemType Directory -Path (Join-Path $stage "data\schematic_rules") | Out-Null
 Copy-Item $packs (Join-Path $stage "data\schematic_rules\packs.json")
+Copy-Item $catalog (Join-Path $stage "data\schematic_rules\engine_catalog.json")
 
 $pyZip = Join-Path $cache $pyZipName
 if (-not (Test-Path $pyZip)) {

@@ -1,0 +1,19 @@
+合成测试资料，不是厂商原文。
+型号 SYN-TXS-2。
+
+Do not place a resistive bypass across a channel.
+
+:::constraint
+id: syn-txs-no-bypass
+category: interface
+title: 禁止电阻旁路
+constraint_type: hard_limit
+description: 通道两侧不允许再用电阻短接。
+parameter: no_resistive_bypass
+value_text: forbidden
+mpn: SYN-TXS-2
+source_page: 6
+source_section: 7.4 Channel use
+validation_method: path_bypass
+quote: Do not place a resistive bypass across a channel.
+:::

@@ -17,24 +17,30 @@ class GeminiCallError(RuntimeError):
     pass
 
 
-def gemini_transport(pdf_path: Path):
-    source = Path(pdf_path)
-    session = {"client": None, "uploaded": None, "closed": False}
+def gemini_transport(pdf_path: Path | list[Path]):
+    if isinstance(pdf_path, (str, Path)):
+        sources = [Path(pdf_path)]
+    else:
+        sources = [Path(item) for item in pdf_path]
+    session = {"client": None, "uploaded": [], "closed": False}
 
     def close() -> None:
         if session["closed"]:
             return
         session["closed"] = True
         client = session.get("client")
-        uploaded = session.get("uploaded")
-        session["uploaded"] = None
-        name = getattr(uploaded, "name", None)
-        if client is None or not name:
+        uploaded = list(session.get("uploaded") or [])
+        session["uploaded"] = []
+        if client is None:
             return
-        try:
-            client.files.delete(name=name)
-        except Exception:
-            pass
+        for item in uploaded:
+            name = getattr(item, "name", None)
+            if not name:
+                continue
+            try:
+                client.files.delete(name=name)
+            except Exception:
+                pass
 
     def send(body: dict) -> str:
         if session["closed"]:
@@ -60,13 +66,16 @@ def gemini_transport(pdf_path: Path):
             client = genai.Client(api_key=api_key, http_options=_http_options(types, cfg))
             session["client"] = client
         uploaded = session["uploaded"]
-        if uploaded is None:
-            uploaded = client.files.upload(file=str(source))
-            uploaded = _wait_until_ready(client, uploaded)
-            session["uploaded"] = uploaded
+        if not uploaded:
+            for source in sources:
+                item = client.files.upload(file=str(source))
+                session["uploaded"].append(item)
+                ready = _wait_until_ready(client, item)
+                session["uploaded"][-1] = ready
+            uploaded = session["uploaded"]
         response = client.models.generate_content(
             model=body["model"],
-            contents=[uploaded, body["user"]],
+            contents=[*uploaded, body["user"]],
             config=types.GenerateContentConfig(
                 system_instruction=body["system"],
                 response_mime_type="application/json",
@@ -131,6 +140,10 @@ def _response_schema(name: str):
         from app.schematic.planner import CircuitAnalysisPlan
 
         return CircuitAnalysisPlan
+    if name == "discover":
+        from app.schematic.discovery import DiscoveryBatch
+
+        return DiscoveryBatch
     return ProposalBatch
 
 

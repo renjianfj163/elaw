@@ -1,0 +1,41 @@
+合成测试资料，不是厂商原文。
+型号 SYN-WIFI-1。
+
+Device SDIO D0 is pin 1.
+Device SDIO D1 is pin 2.
+
+:::constraint
+id: syn-wifi-sdio-d0
+category: interface
+title: SDIO D0 模块引脚
+constraint_type: hard_limit
+description: 模块 SDIO D0 在引脚 1。
+parameter: pin_role
+value_text: d0
+interface: sdio
+side: device
+pin: 1
+mpn: SYN-WIFI-1
+source_page: 3
+source_section: Table 2
+validation_method: pin_map
+quote: Device SDIO D0 is pin 1.
+:::
+
+:::constraint
+id: syn-wifi-sdio-d1
+category: interface
+title: SDIO D1 模块引脚
+constraint_type: hard_limit
+description: 模块 SDIO D1 在引脚 2。
+parameter: pin_role
+value_text: d1
+interface: sdio
+side: device
+pin: 2
+mpn: SYN-WIFI-1
+source_page: 3
+source_section: Table 2
+validation_method: pin_map
+quote: Device SDIO D1 is pin 2.
+:::

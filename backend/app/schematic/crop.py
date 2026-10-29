@@ -15,6 +15,9 @@ from rank_bm25 import BM25Okapi
 
 from app.schematic.review import MAX_BASIS_CHARS
 
+# 短摘录原样通过。超过这段才按章节裁，裁完最多保留 MAX_BASIS_CHARS。
+PASSTHROUGH_CHARS = 48_000
+
 jieba.setLogLevel(logging.ERROR)
 
 _KEEP = re.compile(
@@ -59,6 +62,21 @@ class Section:
         return "other"
 
 
+_DOC_MARK = re.compile(r"(?m)^【([^】\n]{1,180})】\s*$")
+
+
+def split_marked_documents(text: str) -> list[tuple[str, str]]:
+    """按界面插入的【文件名.pdf】切开。手册正文里的【注意】不算另一份文件。"""
+    matches = [item for item in _DOC_MARK.finditer(text) if item.group(1).lower().endswith(".pdf")]
+    if len(matches) < 2:
+        return [("", text)]
+    docs: list[tuple[str, str]] = []
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        docs.append((match.group(1).strip(), text[match.end() : end].strip()))
+    return [item for item in docs if item[1]]
+
+
 def crop_datasheet(
     text: str,
     components: list[str],
@@ -69,20 +87,38 @@ def crop_datasheet(
     raw = text.strip()
     if not raw or limit <= 0:
         return ""
+    docs = split_marked_documents(raw)
+    if len(docs) < 2:
+        return _crop_body(raw, components, limit=limit, conservative=conservative)
+    return _crop_documents(docs, components, limit=limit, conservative=conservative)
+
+
+def _crop_body(
+    raw: str,
+    components: list[str],
+    *,
+    limit: int,
+    conservative: bool,
+) -> str:
+    raw = raw.strip()
+    if not raw or limit <= 0:
+        return ""
     sections = _split(raw)
-    if len(raw) <= limit and not any(section.role == "drop" for section in sections):
+    short = len(raw) <= PASSTHROUGH_CHARS
+    has_drop = any(section.role == "drop" for section in sections)
+    if short and len(raw) <= limit and not has_drop:
         return raw
-    if len(raw) <= limit:
+    if short:
         kept = [section for section in sections if section.role != "drop"]
-        rendered = _join(kept)
-        return rendered or raw
+        rendered = _fit(kept, limit) if kept else ""
+        return rendered or raw[:limit].rstrip()
     if not _has_headings(sections):
         return _fit_blocks(_windows(raw), _query(components, conservative), limit)
 
     chosen = [section for section in sections if section.role == "keep"]
     if not conservative:
         chosen_ids = {section.index for section in chosen}
-        for index in _rank(sections, component_terms(components), limit=6):
+        for index in _rank(sections, component_terms(components), limit=40):
             section = sections[index]
             if section.index in chosen_ids or section.role == "drop":
                 continue
@@ -91,6 +127,50 @@ def crop_datasheet(
     if chosen:
         return _fit(chosen, limit)
     return _fit_blocks(_windows(raw), _query(components, conservative=True), limit)
+
+
+def _crop_documents(
+    docs: list[tuple[str, str]],
+    components: list[str],
+    *,
+    limit: int,
+    conservative: bool,
+) -> str:
+    """每份手册先分到同一份额，短的把没用完的额度让给被截断的那几份。"""
+    count = len(docs)
+    mark_cost = sum(len(f"【{title}】\n") for title, _ in docs if title)
+    gap_cost = 2 * max(count - 1, 0)
+    usable = max(limit - mark_cost - gap_cost, count)
+    budgets = [usable // count] * count
+    for index in range(usable - sum(budgets)):
+        budgets[index % count] += 1
+    pieces = [""] * count
+    for _ in range(4):
+        pieces = [
+            _crop_body(body, components, limit=budgets[index], conservative=conservative)
+            for index, (_, body) in enumerate(docs)
+        ]
+        spare = sum(max(0, budgets[index] - len(pieces[index])) for index in range(count))
+        needy = [index for index in range(count) if len(docs[index][1]) > len(pieces[index]) + 80]
+        if spare < 200 or not needy:
+            break
+        extra = spare // len(needy)
+        if extra < 200:
+            break
+        for index in range(count):
+            budgets[index] = len(pieces[index])
+        for index in needy:
+            budgets[index] += extra
+    blocks = []
+    for (title, _), piece in zip(docs, pieces):
+        piece = piece.strip()
+        if not piece:
+            continue
+        blocks.append(f"【{title}】\n{piece}" if title else piece)
+    rendered = "\n\n".join(blocks).strip()
+    if len(rendered) > limit:
+        return rendered[:limit].rstrip()
+    return rendered
 
 
 def component_terms(components: list[str]) -> list[str]:
@@ -103,17 +183,27 @@ def component_terms(components: list[str]) -> list[str]:
     return terms
 
 
-def bind_basis(cropped: str, rules: str, *, limit: int = MAX_BASIS_CHARS) -> str:
+def split_basis(cropped: str, rules: str, *, limit: int = MAX_BASIS_CHARS) -> tuple[str, str]:
+    """手册正文和审查规则分开截断，避免规则句子被当成手册原文。"""
     body = cropped.strip()
     block = rules.strip()
     if not block:
-        return body[:limit]
-    headed = f"【审查规则】\n{block}"
-    if len(headed) >= limit:
-        return headed[:limit]
-    room = limit - len(headed) - 2
+        return body[:limit], ""
+    heading = len("【审查规则】\n")
+    if heading + len(block) >= limit:
+        room = limit - heading
+        return "", block[: max(room, 0)]
+    room = limit - heading - len(block) - 2
     if len(body) > room:
-        body = body[:room].rstrip()
+        body = body[: max(room, 0)].rstrip()
+    return body, block
+
+
+def bind_basis(cropped: str, rules: str, *, limit: int = MAX_BASIS_CHARS) -> str:
+    body, block = split_basis(cropped, rules, limit=limit)
+    if not block:
+        return body
+    headed = f"【审查规则】\n{block}"
     if not body:
         return headed
     return f"{body}\n\n{headed}"
@@ -235,7 +325,7 @@ def _windows(text: str) -> list[str]:
 def _fit_blocks(blocks: list[str], terms: list[str], limit: int) -> str:
     if not blocks:
         return ""
-    order = _rank_texts(blocks, terms, limit=8)
+    order = _rank_texts(blocks, terms, limit=40)
     if not order:
         return ""
     chosen: list[str] = []

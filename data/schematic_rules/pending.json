@@ -1,0 +1,220 @@
+{
+  "rules": [
+    {
+      "id": "098bd776-860d-4262-8ccc-be2c01f6237d",
+      "suggested_tag": "power_supply",
+      "text": "RTC 备用电池供电回路应配置防止主电源向不可充电电池反向充电的隔离二极管。",
+      "trigger_context": "RTC 实时时钟备用电源供电电路",
+      "rationale": "防止系统主电源倒灌至不可充备用电池造成电池损坏或安全隐患。",
+      "status": "accepted",
+      "rules_sha256": "5a548e3cbc1c410c1310b3ef8931b4bbddfedb9c6fd7b25c30bf18215f1f7bcf"
+    },
+    {
+      "id": "2d88b9e9-d311-4fae-8f3f-1f08bc8052f6",
+      "suggested_tag": "high_speed_digital",
+      "text": "无源晶振电路两侧的匹配负载电容应靠近晶振引脚布置并就近接地。",
+      "trigger_context": "无源晶振起振电路",
+      "rationale": "减少走线寄生电感和寄生电容对晶振起振频率及稳定性的影响。",
+      "status": "accepted",
+      "rules_sha256": "5a548e3cbc1c410c1310b3ef8931b4bbddfedb9c6fd7b25c30bf18215f1f7bcf"
+    },
+    {
+      "id": "50f32a82-e2c1-4fcc-9b59-ee7d7464caaa",
+      "suggested_tag": "high_speed_digital",
+      "text": "以太网网络变压器的中抽引脚应配置去耦电容或匹配电路以抑制共模噪声。",
+      "trigger_context": "以太网 PHY 芯片与网络变压器连接电路",
+      "rationale": "中抽接地与去耦不当会导致共模辐射超标及以太网信号质量劣化。",
+      "status": "accepted",
+      "rules_sha256": "5a548e3cbc1c410c1310b3ef8931b4bbddfedb9c6fd7b25c30bf18215f1f7bcf"
+    },
+    {
+      "id": "3699572c-3821-4f09-8afa-6e5a35bb4044",
+      "suggested_tag": "power_supply",
+      "text": "同一电源引脚并联多个不同容值的去耦电容时，容值较小的电容应优先靠近芯片引脚放置。",
+      "trigger_context": "芯片电源引脚配置多个不同容量的去耦电容",
+      "rationale": "小容值电容主要用于滤除高频噪声，靠近引脚放置能够最小化去耦回路的寄生电感，保障高频去耦效果。",
+      "status": "accepted",
+      "rules_sha256": "ef4ac47787951c3cc074da8e4129eee2d135863c50d737401f19ba8f141ae567"
+    },
+    {
+      "id": "c178a144-ead0-4fe1-bc9c-d92e2904eed9",
+      "suggested_tag": "high_speed_digital",
+      "text": "PCIe 差分发送信号线上应串接交流耦合电容。",
+      "trigger_context": "电路中包含 PCIe 高速差分总线",
+      "rationale": "交流耦合电容用于隔离发射端与接收端之间的直流偏置电压，确保接口直流电平兼容并防止直流过流破坏器件。",
+      "status": "accepted",
+      "rules_sha256": "ef4ac47787951c3cc074da8e4129eee2d135863c50d737401f19ba8f141ae567"
+    },
+    {
+      "id": "54fd5079-fe41-46c5-9a0f-712dd3ce560b",
+      "suggested_tag": "power_supply",
+      "text": "开关电源的开关节点应预留阻容吸收网络，以抑制高频电压尖峰和降低电磁干扰。",
+      "trigger_context": "DC-DC 变换器或开关管的开关节点（如 SW 或 LX 节点）",
+      "rationale": "开关节点在高频大电流切换过程中，回路寄生电感与电容会引发高频振铃与过冲尖峰，增加 EMI 辐射并可能超过功率管耐压极限。",
+      "status": "accepted",
+      "rules_sha256": "4da7df35de9c1258d6b29db4504e4885fc8f46854729cb868e9b202add7079e3"
+    },
+    {
+      "id": "d99dab6a-68fb-47af-8f91-953d5d6a2666",
+      "suggested_tag": "high_speed_digital",
+      "text": "用于开漏总线跨电压域通信的双向电平转换电路，其两侧不同电压域均需分别配置独立的上拉电阻。",
+      "trigger_context": "跨电平域连接的开漏总线（如 I2C、SMBus 等）及电平转换电路",
+      "rationale": "开漏接口本身不具备高电平驱动能力，若电平转换器某一侧缺少上拉电阻，会导致该侧总线无法上升至正确的逻辑高电平电压。",
+      "status": "accepted",
+      "rules_sha256": "4da7df35de9c1258d6b29db4504e4885fc8f46854729cb868e9b202add7079e3"
+    },
+    {
+      "id": "9f00db9e-c4a5-4819-9b97-294224d70ae7",
+      "suggested_tag": "power_supply",
+      "text": "正负双电源轨模拟供电系统中，正电压与负电压低压差线性稳压器应配置对称的滤波与去耦网络，以保障模拟电路的电源抑制与信号对称性。",
+      "trigger_context": "采用正负双电源轨（如正负电压LDO）为运放或传感器等精密模拟电路供电的设计",
+      "rationale": "正负电源轨不对称的纹波或噪声会降低模拟电路的共模抑制比，导致信号失真与零点漂移。",
+      "status": "accepted",
+      "rules_sha256": "1176f66ade036e364fdbe19892bdaa406280a038f181ecbc47b4e6df9d00fe4f"
+    },
+    {
+      "id": "c639760f-c64d-45b9-8d70-a9827f844504",
+      "suggested_tag": "rf_bias",
+      "text": "天线射频接口走线上应配置低结电容防静电保护器件，以防止静电击穿并降低对高频信号传输与阻抗匹配的影响。",
+      "trigger_context": "板载天线连接器（如IPEX或同轴座）及射频微带走线",
+      "rationale": "天线接口直接暴露在外易受静电放电破坏，采用超低结电容器件可有效防护静电且不破坏射频阻抗特征。",
+      "status": "accepted",
+      "rules_sha256": "1176f66ade036e364fdbe19892bdaa406280a038f181ecbc47b4e6df9d00fe4f"
+    },
+    {
+      "id": "bae75d02-5a78-4951-a46f-c2eb4c67bf5c",
+      "suggested_tag": "power_supply",
+      "text": "直流电源输入端宜配置共模电感以抑制共模噪声与电磁干扰。",
+      "trigger_context": "电源输入回路包含共模滤波电感",
+      "rationale": "共模电感能有效滤除电源线上由外部传导或内部开关高频噪声，降低系统EMI。",
+      "status": "accepted",
+      "rules_sha256": "db0af91a3cbc5cf90a46e57ca6ef5a4de9a23bde17e4eb1f16eff43a58a04021"
+    },
+    {
+      "id": "2e41cf1c-67d4-4af5-87fc-f50218184761",
+      "suggested_tag": "power_supply",
+      "text": "电源防反接电路宜采用理想二极管控制器驱动外部功率 MOSFET 以降低导通损耗与防电流倒灌。",
+      "trigger_context": "电源入口使用理想二极管控制器芯片控制防反接MOSFET",
+      "rationale": "相比肖特基二极管防反接，理想二极管方案导通压降极低，能大幅减少大电流下的发热与功耗。",
+      "status": "accepted",
+      "rules_sha256": "db0af91a3cbc5cf90a46e57ca6ef5a4de9a23bde17e4eb1f16eff43a58a04021"
+    },
+    {
+      "id": "7b19dee5-5f0b-4d7b-bd6c-055de1f66996",
+      "suggested_tag": "high_speed_digital",
+      "text": "电平转换芯片的使能与方向控制引脚应配置确定的控制信号或上下拉电阻，以防止上电及复位期间出现总线冲突。",
+      "trigger_context": "电路中使用带有使能端（OE）或方向控制端（DIR）的电平转换芯片",
+      "rationale": "上电悬空会导致控制引脚处于不确定电平，引起电平转换芯片输出总线争用或产生误逻辑。",
+      "status": "accepted",
+      "rules_sha256": "db0af91a3cbc5cf90a46e57ca6ef5a4de9a23bde17e4eb1f16eff43a58a04021"
+    },
+    {
+      "id": "ff734c18-3368-404b-b44c-9edd6df110af",
+      "suggested_tag": "rf_bias",
+      "text": "射频天线与模组接口之间的传输走线应设计为受控特征阻抗线，并在走线路径上避免阻抗不连续。",
+      "trigger_context": "图纸第15页Wi-Fi与蓝牙模组的天线接口传输走线要求",
+      "rationale": "射频走线阻抗不匹配会导致高频信号反射、增加插入损耗并降低收发灵敏度。",
+      "status": "accepted",
+      "rules_sha256": "f9e3cff54ed73722a5d587f931d0c53fc205f4721a410288c35b14d3017ebf79"
+    },
+    {
+      "id": "7481a159-d7b3-4fa5-adb9-50495d987304",
+      "suggested_tag": "power_supply",
+      "text": "开关电源控制器的自举引脚与开关节点之间应配置自举电容，以提供高端 MOSFET 栅极驱动所需的浮地供电。",
+      "trigger_context": "采用外置 MOSFET 的开关电源控制器电路",
+      "rationale": "自举电容在低端管导通阶段完成充电，为高端管开启提供高于开关节点的栅极电压，若缺失将导致高端管无法完全导通。",
+      "status": "accepted",
+      "rules_sha256": "ee878e39ccf5c6bf86c932dd90b29cc8b2804bbe54735c12c7b1dc887ed4097a"
+    },
+    {
+      "id": "ed1c8b21-0714-4461-99bf-0d9bf0acd5d4",
+      "suggested_tag": "high_speed_digital",
+      "text": "以太网物理层芯片的 MDI 差分信号线上宜配置低结电容防静电保护器件，以保护物理层芯片免受静电和浪涌损坏。",
+      "trigger_context": "以太网 PHY 芯片的 MDI 差分接口电路",
+      "rationale": "以太网接口易从外部引入静电与浪涌，配置低结电容 TVS 管能在提供 ESD 防护的同时避免对高速差分信号品质造成明显衰减。",
+      "status": "accepted",
+      "rules_sha256": "ee878e39ccf5c6bf86c932dd90b29cc8b2804bbe54735c12c7b1dc887ed4097a"
+    },
+    {
+      "id": "143a2cf1-c231-4c04-905a-d3203d293078",
+      "suggested_tag": "power_supply",
+      "text": "开关电源控制器的电流采样引脚应采用开尔文双线差分走线连接至采样电阻，以保障电流采样与过流保护的准确性。",
+      "trigger_context": "在开关电源或电流控制器件（如 Buck 控制器 LM5146）包含电流采样电阻电路时。",
+      "rationale": "开尔文走线能避免大电流回路在 PCB 铜箔上产生的寄生压降干扰微弱的电压采样信号，确保电流反馈与限流控制的可靠性。",
+      "status": "accepted",
+      "rules_sha256": "e0c1b072123baf994c763b12ef696be46757750799475f2fd300161c79e2949b"
+    },
+    {
+      "id": "bac7eee0-d193-45a2-9e0b-9c1391ba36a1",
+      "suggested_tag": "power_supply",
+      "text": "低噪声低压差线性稳压器的降噪或软启动引脚应配置降噪滤波电容并就近接地，以降低输出电源噪声。",
+      "trigger_context": "在包含具有降噪或软启动引脚（如 NR/SS）的高性能 LDO（如 TPS7A49、TPS7A30）电路设计时。",
+      "rationale": "降噪引脚外接滤波电容可滤除芯片内部基准电压源产生的基带噪声，显著改善 LDO 的电源抑制比与输出高频噪声性能。",
+      "status": "accepted",
+      "rules_sha256": "e0c1b072123baf994c763b12ef696be46757750799475f2fd300161c79e2949b"
+    },
+    {
+      "id": "dda67896-e1be-4754-af73-434a950da0ed",
+      "suggested_tag": "high_speed_digital",
+      "text": "微控制器或主控芯片的启动模式配置引脚应通过确定阻值的电阻进行上拉或下拉，避免信号悬空。",
+      "trigger_context": "在包含 MCU 或 SoC（如 STM32、C8750）的启动选择引脚（如 BOOT0、BOOT_CONFIG）电路时。",
+      "rationale": "启动配置引脚悬空易导致上电复位期间逻辑电平受噪声干扰不确定，采用电阻上下拉可保证系统在上电时稳定进入预期的 boot 模式。",
+      "status": "accepted",
+      "rules_sha256": "e0c1b072123baf994c763b12ef696be46757750799475f2fd300161c79e2949b"
+    },
+    {
+      "id": "2f47144c-c15c-410f-9f9c-05bc0a023a9a",
+      "suggested_tag": "high_speed_digital",
+      "text": "高速图像传输总线差分信号线上的静电防护器件应选用低结电容器件，以防止高频信号衰减。",
+      "trigger_context": "在 MIPI CSI/DSI 等高速图像传感器或显示接口的差分信号线连接 ESD 防护电路时。",
+      "rationale": "高速差分总线的数据传输速率极高，若 ESD 保护器件结电容较大，会严重衰减高频信号成分，导致信号眼图闭合与误码率升高。",
+      "status": "accepted",
+      "rules_sha256": "e0c1b072123baf994c763b12ef696be46757750799475f2fd300161c79e2949b"
+    },
+    {
+      "id": "e6e85bb1-df45-4975-bfe0-d80530b70115",
+      "suggested_tag": "power_supply",
+      "text": "精准基准电压源的输出端应配置滤波去耦电容，以确保输出电压稳定与低噪声性能。",
+      "trigger_context": "图纸第12页SGM4024精准基准电压源电路（U1302）",
+      "rationale": "基准电压源易受高频噪声干扰，在输出端配置去耦电容可有效抑制纹波并稳定基准电压供电。",
+      "status": "accepted",
+      "rules_sha256": "8b25c2a554bd04bf8faf93ade385c1033bac8662ee41cfcb378575f690d315ef"
+    },
+    {
+      "id": "7f939183-15ba-4864-80b5-4788bd1b6f05",
+      "suggested_tag": "high_speed_digital",
+      "text": "以太网物理层芯片的状态指示灯驱动回路中应串联限流电阻，以防止过度抽流损伤芯片管脚。",
+      "trigger_context": "图纸第10页RTL8127AT以太网物理层芯片状态指示灯驱动电路",
+      "rationale": "PHY芯片的指示灯驱动管脚驱动能力有限，缺少限流电阻会导致管脚或LED过热损坏。",
+      "status": "accepted",
+      "rules_sha256": "8b25c2a554bd04bf8faf93ade385c1033bac8662ee41cfcb378575f690d315ef"
+    },
+    {
+      "id": "62e051cb-0ea6-4e5f-84dc-72d55511bfd2",
+      "suggested_tag": "high_speed_digital",
+      "text": "串行外设接口闪存芯片的写保护与保持控制引脚应通过电阻上拉至电源，以防止总线误操作或挂起。",
+      "trigger_context": "Page 12 SPI NOR Flash W25Q64 接口中的 WP 与 HOLD 引脚连接",
+      "rationale": "未使用的写保护和保持引脚悬空会导致芯片误进入写保护状态或暂停总线传输，引发系统故障。",
+      "status": "accepted",
+      "rules_sha256": "737283e5e03bc665fdd59497ca9c573b8697e82464a9cc2e6f0691ac37e6938c"
+    },
+    {
+      "id": "d4375640-aa3e-4dac-a318-d3a6de01c3e9",
+      "suggested_tag": "high_speed_digital",
+      "text": "开关量按键输入回路引脚应配置确定的上拉或下拉电阻，以避免按键断开时输入端电平悬空。",
+      "trigger_context": "Page 11 按键输入电路 SW1201 与 SW1202 连接至主控输入端",
+      "rationale": "数字芯片输入管脚悬空容易受到空间噪声干扰引发误触发，并增加芯片静态功耗。",
+      "status": "accepted",
+      "rules_sha256": "737283e5e03bc665fdd59497ca9c573b8697e82464a9cc2e6f0691ac37e6938c"
+    },
+    {
+      "id": "52812f4f-db6c-43a2-984f-9cf03ca66c9b",
+      "suggested_tag": "power_supply",
+      "text": "低侧场效应管驱动电路的栅极应配置下拉电阻，以保障上电和复位期间开关管可靠关断。",
+      "trigger_context": "Page 7 与 Page 11 中的 N 沟道 MOSFET 驱动回路",
+      "rationale": "主控芯片在上电及复位期间 GPIO 通常处于高阻态，栅极缺少下拉电阻可能导致场效应管误导通。",
+      "status": "accepted",
+      "rules_sha256": "737283e5e03bc665fdd59497ca9c573b8697e82464a9cc2e6f0691ac37e6938c"
+    }
+  ]
+}

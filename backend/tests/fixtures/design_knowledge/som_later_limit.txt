@@ -1,0 +1,20 @@
+合成测试资料，不是厂商原文。后上传的这一份不能覆盖先前的 1.8 V 限值。
+
+GPIO12 absolute maximum voltage is 3.6 V.
+
+:::constraint
+id: syn-som-gpio12-later
+category: electrical
+title: GPIO12 另一份限值
+constraint_type: hard_limit
+description: 这是后加入的不同限值，必须和原约束一起保留。
+parameter: abs_max_v
+max: 3.6
+unit: V
+mpn: SYN-SOM-180
+pin: 12
+source_page: 1
+source_section: note
+validation_method: compare_voltage
+quote: GPIO12 absolute maximum voltage is 3.6 V.
+:::

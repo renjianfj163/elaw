@@ -1,0 +1,1263 @@
+{
+  "version": "1",
+  "rules": [
+    {
+      "rule_id": "PWR-001",
+      "name": "高压电源连接到不耐受该电压的引脚",
+      "category": "power",
+      "description": "比较引脚开路直流电压和绝对最大额定值或电压域。",
+      "default_severity": "critical",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [
+        "存在 GPIO、普通 IO 或同类引脚"
+      ],
+      "check_method": "PWR-001",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "断开高压直流偏置，或改用额定电压匹配的电平转换。",
+      "confidence_policy": "没有绝对最大额定值时记为 needs_review，不认定器件损坏。装配不明或按直流短路估计时从 confirmed 降为 probable。",
+      "test_cases": [
+        "pullup_12v",
+        "divider_safe",
+        "missing_rating",
+        "name_only"
+      ],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "PWR-002",
+      "name": "电源 EN 被上拉到过高的电源轨",
+      "category": "power",
+      "description": "只检查标明为 EN 的引脚，不因网络名里有 EN 而报警。",
+      "default_severity": "critical",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [
+        "存在 EN 引脚"
+      ],
+      "check_method": "PWR-002",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "把使能上拉改到该脚允许的电源，或改为开漏加合适上拉。",
+      "confidence_policy": "耐压未知时待核实，不认定损坏。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "PWR-003",
+      "name": "上拉导致灌电流超过限额",
+      "category": "power",
+      "description": "用戴维南等效计算拉低时的电流，再和 IOL 比较。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "PWR-003",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "增大上拉电阻或降低上拉电压。",
+      "confidence_policy": "VOL 未知时只给出按 0V 估算的上限，超限记为 needs_review。IOL 未知则为无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "PWR-004",
+      "name": "不同电源域之间的反向供电路径",
+      "category": "power",
+      "description": "查看引脚是否有通向更高电源轨的直流通路。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "PWR-004",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "核对 Ioff、串联电阻或掉电隔离。",
+      "confidence_policy": "只有同时标明无 Ioff 且存在钳位时记为 probable；否则待核实，不做时序仿真结论。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "PWR-005",
+      "name": "电源使能的默认电平不确定",
+      "category": "power",
+      "description": "检查 EN 是否有独立上拉或下拉。",
+      "default_severity": "medium",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "PWR-005",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "按手册补上默认电平所需的电阻。",
+      "confidence_policy": "没有推荐默认电平时不把缺电阻判成确定故障。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "PWR-006",
+      "name": "器件供电范围不匹配",
+      "category": "power",
+      "description": "对照已核验输入电压范围。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "PWR-006",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "调整供电或更换器件。",
+      "confidence_policy": "没有已核验范围时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "PWR-007",
+      "name": "稳压器输出电容不足",
+      "category": "power",
+      "description": "与 REG-003 使用同一检查。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "REG-003",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "按具体型号补足有效输出电容。",
+      "confidence_policy": "不使用通用经验电容代替手册下限。",
+      "test_cases": [],
+      "alias_of": "REG-003"
+    },
+    {
+      "rule_id": "IO-001",
+      "name": "输入电压超过引脚额定值",
+      "category": "io",
+      "description": "比较同一网络上驱动端 VOH 和接收端绝对最大值。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "IO-001",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "降低驱动高电平或增加转换。",
+      "confidence_policy": "任一侧电压没有给出时不猜测。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "IO-002",
+      "name": "不同电压域直接相连",
+      "category": "io",
+      "description": "同一网络上电压域不同，且中间没有转换器。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "IO-002",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "插入电平转换或确认引脚耐受。",
+      "confidence_policy": "没有绝对最大额定值时待核实。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "IO-003",
+      "name": "开漏输出缺少上拉",
+      "category": "io",
+      "description": "检查开漏脚是否有到电源的上拉。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "IO-003",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "补上拉到该脚允许的电源。",
+      "confidence_policy": "不把通用上拉阻值区间写成硬性限值。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "IO-004",
+      "name": "多个推挽输出驱动同一网络",
+      "category": "io",
+      "description": "统计同一网络上的推挽输出。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "IO-004",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "改成开漏、加缓冲或确认使能互斥。",
+      "confidence_policy": "使能网络不同时记为 needs_review，不直接认定同时导通。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "LS-001",
+      "name": "电平转换器两侧被旁路",
+      "category": "level_shifter",
+      "description": "搜索不穿过电源和地的无源跨接。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "LS-001",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "去掉跨接，或说明它是有意的直通并核对直流与边沿。",
+      "confidence_policy": "0Ω 或同网记为 confirmed；阻性跨接记为 probable，不认定转换器已经失效或仍然有效。",
+      "test_cases": [
+        "bypass_33",
+        "bypass_short",
+        "pullups_not_bypass"
+      ],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "LS-002",
+      "name": "转换器供电超出已核验范围",
+      "category": "level_shifter",
+      "description": "比较 VCCA/VCCB 和已核验最小最大值。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "LS-002",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "把供电改进手册范围。",
+      "confidence_policy": "没有已核验范围时无法判定，严重度降为资料提醒。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "LS-003",
+      "name": "DIR 或 OE 静态电平不确定",
+      "category": "level_shifter",
+      "description": "检查方向和使能脚是否被电源、地或其他输出确定。",
+      "default_severity": "medium",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "LS-003",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "给出复位期间仍然有效的偏置。",
+      "confidence_policy": "电平已经确定时不判断方向是否符合意图。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "LS-004",
+      "name": "推挽或开漏类型不匹配",
+      "category": "level_shifter",
+      "description": "比较信号输出类型和转换器支持的模式。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "LS-004",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "更换转换器或输出类型。",
+      "confidence_policy": "没有手册工作模式时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "LS-005",
+      "name": "外部上下拉与转换器冲突",
+      "category": "level_shifter",
+      "description": "检查外部电阻是否超出手册负载限制。",
+      "default_severity": "medium",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "LS-005",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "按手册调整上下拉。",
+      "confidence_policy": "没有手册限值时不把外部上拉本身判成故障。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "LS-006",
+      "name": "转换器负载电容过大",
+      "category": "level_shifter",
+      "description": "汇总负载电容并对照具体型号限制。",
+      "default_severity": "medium",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "LS-006",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "减小负载或更换器件。",
+      "confidence_policy": "限制必须来自已核验手册。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "LS-007",
+      "name": "复位或掉电时转换器被关闭",
+      "category": "level_shifter",
+      "description": "分析 OE 在复位和掉电时的电平。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "LS-007",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "使 OE 在需要的阶段保持有效。",
+      "confidence_policy": "没有时序模型时只列出待核实条件。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "LS-008",
+      "name": "转换器选型与接口不匹配",
+      "category": "level_shifter",
+      "description": "按速率、方向、驱动类型和电压筛选。",
+      "default_severity": "medium",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "LS-008",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "更换适合该接口的器件。",
+      "confidence_policy": "没有速率和手册能力时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "IF-001",
+      "name": "SDIO 数据位映射错误",
+      "category": "interface",
+      "description": "按主控 Dn 到模块 Dn 的端到端连接检查。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "IF-001",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "按信号身份改正连接。",
+      "confidence_policy": "通道号或符号上下位置不能单独作为错误依据。",
+      "test_cases": [
+        "sdio_cross",
+        "sdio_channel_numbers"
+      ],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "IF-002",
+      "name": "SPI 信号映射错误",
+      "category": "interface",
+      "description": "检查 MOSI、MISO、SCLK、CS 的同名端到端映射。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "IF-002",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "改正交叉的信号。",
+      "confidence_policy": "端点缺侧别时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "IF-003",
+      "name": "UART 发送和接收方向错误",
+      "category": "interface",
+      "description": "检查发送端是否到达对端接收端。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "IF-003",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "交叉 TX 和 RX。",
+      "confidence_policy": "同名端到端才算方向正确。",
+      "test_cases": [
+        "uart_swap",
+        "uart_ok"
+      ],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "IF-004",
+      "name": "UART 绕过电平转换器",
+      "category": "interface",
+      "description": "转换器通道两侧另有无源通路，且该通道承载 UART。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "IF-004",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "去掉旁路或确认同电压直连是有意的。",
+      "confidence_policy": "阻性旁路记为 probable。串联阻尼电阻不算旁路。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "IF-005",
+      "name": "USB 数据线被多个 PHY 直接连接",
+      "category": "interface",
+      "description": "与 USB-001 使用同一检查。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "USB-001",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "保证同一时间只有一个 PHY 接到数据线。",
+      "confidence_policy": "装配状态未知时待核实。",
+      "test_cases": [],
+      "alias_of": "USB-001"
+    },
+    {
+      "rule_id": "IF-006",
+      "name": "差分极性映射错误",
+      "category": "interface",
+      "description": "检查 P/N 或 D+/D- 是否到达同名端。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "IF-006",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "按接口标准改正极性。",
+      "confidence_policy": "未标明该标准是否允许交换时记为 needs_review。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "IF-007",
+      "name": "接口必需控制信号缺失",
+      "category": "interface",
+      "description": "按接口类型检查复位、使能或时钟请求。",
+      "default_severity": "medium",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "IF-007",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "补上必需控制信号。",
+      "confidence_policy": "没有接口要求表时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "IF-008",
+      "name": "引脚复用冲突",
+      "category": "interface",
+      "description": "对照 MCU 或 SOM 复用表。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "IF-008",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "改用没有冲突的引脚。",
+      "confidence_policy": "没有复用表时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "IF-009",
+      "name": "层次网络或别名连接错误",
+      "category": "interface",
+      "description": "把别名、层次网络和跨页网络收成一张网表后再判断。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "IF-009",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "统一网络名并重新导出网表。",
+      "confidence_policy": "只有 PDF 时连接结论降为 probable。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "IF-010",
+      "name": "多通道端到端映射错误",
+      "category": "interface",
+      "description": "对 kind 为 mapped 的信号组做同名端到端检查。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "IF-010",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "按信号身份而不是通道号改正。",
+      "confidence_policy": "端点不完整时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "RST-001",
+      "name": "复位上下拉或极性不合理",
+      "category": "reset",
+      "description": "对照复位极性、推荐电阻和外部驱动。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "RST-001",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "按手册改正复位偏置。",
+      "confidence_policy": "没有手册推荐时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "RST-002",
+      "name": "复位电容超出驱动器能力",
+      "category": "reset",
+      "description": "比较复位网络电容和复位器件规格。",
+      "default_severity": "medium",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "RST-002",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "减小电容或更换驱动器。",
+      "confidence_policy": "没有规格时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "RST-003",
+      "name": "BOOT 默认状态不确定",
+      "category": "reset",
+      "description": "检查启动配置脚的上下拉和采样条件。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "RST-003",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "补上可复现的默认电平。",
+      "confidence_policy": "没有采样时序时不证明启动失败。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "RST-004",
+      "name": "MCU 在复位期间失去对启动电路的控制",
+      "category": "reset",
+      "description": "BOOT 位于转换器一侧，且 OE 由同一类 MCU 驱动。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "RST-004",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "让 OE 在复位期间不依赖该 MCU。",
+      "confidence_policy": "没有时序模型时记为 needs_review，不证明启动失败。",
+      "test_cases": [
+        "boot_oe"
+      ],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "RST-005",
+      "name": "OE 与复位通路相互依赖",
+      "category": "reset",
+      "description": "NRST 位于转换器通道上，OE 由同一 MCU 驱动。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "RST-005",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "打破 OE 与复位通路的依赖。",
+      "confidence_policy": "静态分析只标出依赖，不证明启动失败。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "RST-006",
+      "name": "Bootloader 时序可能不满足",
+      "category": "reset",
+      "description": "对照启动流程和外部控制时序。",
+      "default_severity": "medium",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "RST-006",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "调整控制时序。",
+      "confidence_policy": "没有时序模型时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "RST-007",
+      "name": "复位信号多源或极性冲突",
+      "category": "reset",
+      "description": "检查开漏、推挽和多个复位源。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "RST-007",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "合并为一种极性的开漏复位。",
+      "confidence_policy": "驱动方式未知时待核实。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "RST-008",
+      "name": "复位期间总线仍被驱动",
+      "category": "reset",
+      "description": "检查启动阶段的总线隔离和默认输出。",
+      "default_severity": "medium",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "RST-008",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "在复位期间隔离外部驱动。",
+      "confidence_policy": "没有默认输出状态时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "REG-001",
+      "name": "反馈分压计算",
+      "category": "regulator",
+      "description": "按网表区分上下电阻，计算 Vout=Vref*(1+Rtop/Rbottom)。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "REG-001",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "按目标电压调整反馈电阻。",
+      "confidence_policy": "没有已核验 Vref 时不计算看似精确的电压。没有允许偏差时偏差只记为 probable。",
+      "test_cases": [
+        "divider_wrong",
+        "divider_missing_vref"
+      ],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "REG-002",
+      "name": "输出电压超出负载允许范围",
+      "category": "regulator",
+      "description": "比较标称值、误差和已知启动过冲。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "REG-002",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "调整输出或负载允许范围。",
+      "confidence_policy": "没有过冲数据时不把过冲算进确定故障。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "REG-003",
+      "name": "输出电容有效值不足",
+      "category": "regulator",
+      "description": "汇总输出到地的电容，对照已核验下限。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "REG-003",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "补足有效电容。",
+      "confidence_policy": "标称值已经低于下限可以确认；标称值够但缺少降容时待核实，不判通过。ESR 和布局不在本项。",
+      "test_cases": [
+        "cout_low",
+        "cout_missing_limit",
+        "cout_no_bias"
+      ],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "REG-004",
+      "name": "符号引脚与订货型号不一致",
+      "category": "regulator",
+      "description": "对照准确订货型号的引脚表。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "REG-004",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "改正符号或订货型号。",
+      "confidence_policy": "型号或手册版本不确定时降低置信度，不编造引脚。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "REG-005",
+      "name": "电容位置或布局需要核实",
+      "category": "regulator",
+      "description": "检查电容连接，布局问题需要 PCB 资料。",
+      "default_severity": "medium",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "REG-005",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "按手册把电容放到要求的位置。",
+      "confidence_policy": "没有 PCB 时无法判定布局。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "ANA-001",
+      "name": "晶振负载电容",
+      "category": "analog",
+      "description": "按 CL≈C1*C2/(C1+C2)+Cstray 计算。",
+      "default_severity": "medium",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "ANA-001",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "按晶振规格调整两侧电容和寄生估计。",
+      "confidence_policy": "没有 CL 时无法判定。没有寄生电容时只给出串联部分并待核实。",
+      "test_cases": [
+        "crystal_high",
+        "crystal_no_stray"
+      ],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "ANA-002",
+      "name": "晶振电容注释与元件值不一致",
+      "category": "analog",
+      "description": "比较注释中的容值和实际元件值。",
+      "default_severity": "low",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "ANA-002",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "改正注释或元件值。",
+      "confidence_policy": "标注矛盾不等同于电路一定不起振。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "ANA-003",
+      "name": "运放共模或输出摆幅不满足",
+      "category": "analog",
+      "description": "检查输入范围、输出摆幅和供电。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "ANA-003",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "调整工作点或供电。",
+      "confidence_policy": "没有手册范围时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "ANA-004",
+      "name": "分压或采样网络超限",
+      "category": "analog",
+      "description": "检查电流、功耗、容差和额定值。",
+      "default_severity": "medium",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "ANA-004",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "调整阻值或功率等级。",
+      "confidence_policy": "缺额定值时无法判定，不自行估算功耗。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "USB-001",
+      "name": "多个 USB PHY 并联到同一数据对",
+      "category": "usb",
+      "description": "D+ 和 D- 经同一网络或 0Ω 连到多个 PHY。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "USB-001",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "增加切换、只装配一个 PHY，或明确互斥 DNP。",
+      "confidence_policy": "装配状态未知或存在未决互斥选项时记为 needs_review，不直接判成设计错误。",
+      "test_cases": [
+        "two_phy",
+        "one_dnp",
+        "fitted_unknown"
+      ],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "USB-002",
+      "name": "USB 角色或 VBUS 方向冲突",
+      "category": "usb",
+      "description": "检查主机、设备和 VBUS 方向。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "USB-002",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "明确端口角色和 VBUS 路径。",
+      "confidence_policy": "角色资料不足时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "USB-003",
+      "name": "USB VBUS 回灌",
+      "category": "usb",
+      "description": "检查 VBUS 到系统电源的路径和保护器件。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "USB-003",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "增加防反灌器件。",
+      "confidence_policy": "没有电源路径时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "SYS-001",
+      "name": "共享总线有多个主动驱动源",
+      "category": "system",
+      "description": "与 IO-004 使用同一检查。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "IO-004",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "确认使能互斥或改为开漏。",
+      "confidence_policy": "使能条件未知时待核实。",
+      "test_cases": [],
+      "alias_of": "IO-004"
+    },
+    {
+      "rule_id": "SYS-002",
+      "name": "可选装配缺少互斥约束",
+      "category": "system",
+      "description": "检查互斥选项里的 DNP 和同时装配。",
+      "default_severity": "medium",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "SYS-002",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "明确唯一的装配组合。",
+      "confidence_policy": "状态没填时待核实，不猜测实际贴装。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "SYS-003",
+      "name": "外部接口保护需要核实",
+      "category": "system",
+      "description": "按接口是否外接检查 ESD、限流和隔离。",
+      "default_severity": "medium",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "SYS-003",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "只在外接且手册要求时补保护。",
+      "confidence_policy": "不要求每个电路都安装同一种保护器件。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "SYS-004",
+      "name": "电源域上电顺序冲突",
+      "category": "system",
+      "description": "比较供电时序和输入耐受。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "SYS-004",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "调整上电顺序。",
+      "confidence_policy": "没有时序资料时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "DOC-001",
+      "name": "关键器件缺少完整型号",
+      "category": "documentation",
+      "description": "检查 IC 和关键角色是否有完整型号。",
+      "default_severity": "info",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "DOC-001",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "补齐订货型号、厂商和封装。",
+      "confidence_policy": "缺型号是资料问题，确认的是资料缺失本身。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "DOC-002",
+      "name": "符号、封装和引脚表不一致",
+      "category": "documentation",
+      "description": "对比符号、封装和制造商引脚表。",
+      "default_severity": "high",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "DOC-002",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "改正符号或封装。",
+      "confidence_policy": "没有引脚表时无法判定，不编造引脚定义。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "DOC-003",
+      "name": "设计约束缺少手册来源",
+      "category": "documentation",
+      "description": "要求记录手册版本、章节或页码。",
+      "default_severity": "info",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "DOC-003",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "把约束改成已核验条目。",
+      "confidence_policy": "未核验约束不参与判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "DOC-004",
+      "name": "原理图、BOM 和网表版本不一致",
+      "category": "documentation",
+      "description": "比较文件版本、网表时间和工程版本。",
+      "default_severity": "medium",
+      "required_inputs": [
+        "netlist"
+      ],
+      "preconditions": [],
+      "check_method": "DOC-004",
+      "evidence_required": [
+        "网络",
+        "元件",
+        "引脚"
+      ],
+      "suggested_fix": "重新导出同一版本的网表和 BOM。",
+      "confidence_policy": "缺任一文件时无法判定。",
+      "test_cases": [],
+      "alias_of": ""
+    },
+    {
+      "rule_id": "KN-001",
+      "name": "设计约束冲突或接口资料不足",
+      "category": "documentation",
+      "description": "保留互相冲突的设计约束，并在接口映射缺少已复核引脚角色时停止判定。",
+      "default_severity": "high",
+      "required_inputs": [
+        "design_constraints"
+      ],
+      "preconditions": [
+        "本次审查带有设计资料库"
+      ],
+      "check_method": "KN-001",
+      "evidence_required": [
+        "约束",
+        "来源",
+        "摘录"
+      ],
+      "suggested_fix": "由设计者确定采用哪一条约束，或补齐引脚角色后再审查。",
+      "confidence_policy": "冲突保持待核实。不覆盖旧约束，不把推荐值升成强制值，也不取平均。",
+      "test_cases": [
+        "constraint_conflict",
+        "missing_pin_role"
+      ],
+      "alias_of": ""
+    }
+  ]
+}

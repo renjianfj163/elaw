@@ -122,7 +122,9 @@ def test_doc_product_uses_converted_docx(monkeypatch):
 
 
 def test_overlong_extract_is_flagged_without_truncation():
-    text = "甲" * 48001
+    from app.schematic.review import MAX_BASIS_CHARS
+
+    text = "甲" * (MAX_BASIS_CHARS + 1)
     response = client.post(
         "/api/schematic/extract",
         data={"role": "product"},
@@ -131,5 +133,5 @@ def test_overlong_extract_is_flagged_without_truncation():
     assert response.status_code == 200
     body = response.json()
     assert body["too_long"] is True
-    assert body["chars"] == 48001
+    assert body["chars"] == MAX_BASIS_CHARS + 1
     assert body["text"] == text

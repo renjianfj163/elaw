@@ -110,6 +110,23 @@
     button.btn-text:disabled, button.btn-text[aria-disabled="true"],
     button.btn-icon:disabled { background: transparent; }
     button.is-busy { display: inline-flex; align-items: center; gap: var(--space-2); }
+    button.btn-primary.is-busy:disabled {
+      cursor: progress;
+      background: var(--primary);
+      color: var(--primary-ink);
+      border-color: transparent;
+    }
+    .spinner {
+      width: 16px;
+      height: 16px;
+      box-sizing: border-box;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      display: inline-block;
+      flex: none;
+      animation: spin 0.7s linear infinite;
+    }
     :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
     .icon { width: 20px; height: 20px; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .theme-switch {
@@ -184,7 +201,8 @@
     }
     main, .legal, .dock-inner { width: min(var(--content), calc(100% - 32px)); }
     main { padding: var(--space-4) 0 var(--space-6); }
-    body[data-page="materials"] main { padding-bottom: 96px; }
+    body[data-page="materials"] main { padding-bottom: 180px; }
+    #knowledgeCard { margin-bottom: 24px; }
     .brand { font-weight: 650; letter-spacing: 0.02em; flex: none; }
     .stepper {
       display: flex;
@@ -308,6 +326,18 @@
       overflow: hidden;
     }
     .file-card-body { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: var(--space-3); align-items: start; }
+    .file-list { list-style: none; padding: 0; margin: var(--space-3) 0 0; display: flex; flex-direction: column; gap: var(--space-2); }
+    .file-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: var(--space-3);
+      padding: var(--space-2) var(--space-3);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--soft);
+    }
+    .file-row .name { max-width: 36rem; }
     .thumb {
       width: 100%;
       height: 140px;
@@ -329,6 +359,7 @@
     }
     .callout.bad { border-color: var(--bad); background: var(--bad-bg); color: var(--bad); }
     .callout.warn { border-color: var(--warn); background: var(--warn-bg); color: var(--warn); }
+    #datasheetFigures { white-space: pre-wrap; }
     .ready-list { list-style: none; padding: 0; margin: var(--space-2) 0 0; }
     .ready-row {
       display: grid;
@@ -428,7 +459,19 @@
     .stages { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; padding: 0; margin: var(--space-2) 0; }
     .stages li { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; color: var(--muted); }
     .stages li[data-state="now"] { color: var(--primary); border-color: var(--primary); }
+    .stages li[data-state="now"]::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      margin-right: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      display: inline-block;
+      vertical-align: 0.1em;
+      animation: pulse 1.1s ease-in-out infinite;
+    }
     .stages li[data-state="done"] { color: var(--ok); border-color: var(--ok); }
+    .empty.is-wait { border-style: solid; border-color: var(--primary); background: var(--primary-bg); color: var(--ink); }
     .split-view { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: var(--space-3); }
     .preview, .issues { min-width: 0; }
     .preview-bar, .filters { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-2); }
@@ -457,11 +500,24 @@
     .evidence div { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: var(--space-2); }
     .evidence dt { color: var(--muted); }
     .evidence dd { margin: 0; overflow-wrap: anywhere; }
+    .knowledge-form, .netlist-form { display: grid; gap: var(--space-2); margin: var(--space-2) 0; }
+    .knowledge-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .knowledge-form .span-3, .netlist-form textarea { grid-column: 1 / -1; }
+    .knowledge-form textarea, .netlist-form textarea { min-height: 140px; width: 100%; font-family: ui-monospace, Consolas, monospace; }
+    .quote { margin: var(--space-2) 0 0; padding: var(--space-2); border-left: 3px solid var(--line); color: var(--ink); }
     .filters { align-items: end; }
     .filters label { display: grid; gap: var(--space-1); font-size: 13px; color: var(--muted); }
-    .history { width: 100%; text-align: left; background: var(--card); }
-    .history-open {
+    .history {
       width: 100%;
+      text-align: left;
+      background: var(--card);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+    .history-open {
+      flex: 1;
+      min-width: 0;
       border: 0;
       background: transparent;
       text-align: left;
@@ -470,6 +526,8 @@
       gap: 2px;
       padding: var(--space-2) var(--space-1);
     }
+    .history-remove { flex: none; color: var(--muted); }
+    .history-remove:hover, .history-remove:focus-visible { color: var(--bad); }
     .empty {
       border: 1px dashed var(--line);
       border-radius: var(--radius);
@@ -524,16 +582,56 @@
     dialog::backdrop { background: var(--overlay); }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
     .field { margin: var(--space-2) 0; }
+    .rule-card { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--line); }
+    .rule-card textarea { width: 100%; min-height: 72px; }
     .field label { display: block; margin-bottom: var(--space-1); }
     .field input, .field select { width: 100%; }
+    .key-box { position: relative; }
+    .key-box.masked::after {
+      content: "********";
+      position: absolute;
+      left: 11px;
+      top: 8px;
+      letter-spacing: 0.14em;
+      pointer-events: none;
+      user-select: none;
+    }
+    .key-box.masked input { color: transparent; }
     .exit-note { padding: var(--space-6) var(--space-4); text-align: center; }
     .fp { overflow-wrap: anywhere; }
+    .sheet-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    button.sheet-chip {
+      border-radius: 999px;
+      border-color: transparent;
+      padding: 2px 10px;
+      min-height: 28px;
+      font-size: 13px;
+      font-weight: 650;
+    }
+    #sheetFrame {
+      width: 100%;
+      height: 420px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      margin: 8px 0;
+      background: var(--bg);
+    }
+    .sheet-preview {
+      white-space: pre-wrap;
+      max-height: 140px;
+      overflow: auto;
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
     @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 50% { opacity: 0.25; } }
     @media (prefers-reduced-motion: reduce) {
-      .skel-block { animation: none; }
+      .skel-block, .spinner, .stages li[data-state="now"]::before { animation: none; }
     }
     @media (max-width: 900px) {
-      .pair, .split-view, .grid-2, .file-card-body { grid-template-columns: 1fr; }
+      .pair, .split-view, .grid-2, .file-card-body, .knowledge-form { grid-template-columns: 1fr; }
       .top-inner { flex-wrap: wrap; }
       .stepper { order: 5; width: 100%; }
       .ready-row { grid-template-columns: auto minmax(0, 1fr); }
@@ -553,20 +651,12 @@
         <button type="button" class="step" data-step="schematic" data-page="schematic">
           <span class="mark" aria-hidden="true">○</span><span>原理图审查</span><span class="sr step-word">未完成</span>
         </button>
-        <span class="step-sep" aria-hidden="true">→</span>
-        <button type="button" class="step" data-step="report" data-page="report" data-locked="true">
-          <span class="mark" aria-hidden="true">○</span><span>报告</span><span class="sr step-word">未完成</span>
-        </button>
-        <span class="step-sep" aria-hidden="true">→</span>
-        <button type="button" class="step" data-step="basis" data-page="basis" data-locked="true">
-          <span class="mark" aria-hidden="true">○</span><span>依据库</span><span class="sr step-word">未完成</span>
-        </button>
       </nav>
       <div class="top-actions">
         <div class="privacy-wrap">
-          <button type="button" id="privacyChip" class="chip-btn ok" aria-expanded="false" aria-controls="privacyPop">
-            <span id="privacyIcon" aria-hidden="true">🔒</span>
-            <span id="privacyText">本地模式，不外发</span>
+          <button type="button" id="privacyChip" class="chip-btn warn" aria-expanded="false" aria-controls="privacyPop">
+            <span id="privacyIcon" aria-hidden="true">⚠</span>
+            <span id="privacyText">外发已开启 → Gemini</span>
           </button>
           <div id="privacyPop" class="popover" hidden tabindex="-1">
             <p id="privacyDetail"></p>
@@ -605,20 +695,23 @@
           <h1 tabindex="-1">原理图审查</h1>
           <span class="badge warn">草稿 · 需人工复核</span>
         </div>
-        <p class="hint">上传矢量 PDF。数值由规则引擎比较，其余结论来自模型。</p>
+        <p class="hint">可以一次上传很多份矢量 PDF，最多 120 份，每份不超过 40MB、800 页，合计不超过 500MB。产品定义和 Datasheet 可以不传。没有这两类时，只按通用规则审查，器件参数标为无法判定。数值由规则引擎比较，其余结论来自模型。</p>
         <section class="card" aria-labelledby="readyTitle">
           <h2 id="readyTitle">就绪清单</h2>
           <ul id="readyList" class="ready-list"></ul>
         </section>
-        <form id="schematicForm" novalidate>
+        <form id="schematicForm" novalidate aria-busy="false">
           <div id="schematicDrop" class="dropzone" tabindex="0" role="button" aria-label="上传原理图 PDF">
             <strong>把原理图 PDF 拖到这里</strong>
-            <span>也可以点击选择，或在页面上粘贴</span>
+            <span>可以一次选很多份，也可以点击选择或粘贴</span>
           </div>
-          <input id="schematicFile" class="file-input" name="schematic" type="file" accept=".pdf,application/pdf" tabindex="-1" aria-hidden="true" />
+          <input id="schematicFile" class="file-input" name="schematic" type="file" accept=".pdf,application/pdf" multiple tabindex="-1" aria-hidden="true" />
           <div id="schematicFileCard" class="card" hidden></div>
           <div class="actions">
-            <button id="schematicBtn" class="btn btn-primary" type="submit" disabled aria-describedby="schematicBlock">生成审查草稿</button>
+            <button id="schematicBtn" class="btn btn-primary" type="submit" disabled aria-describedby="schematicBlock" aria-busy="false">
+              <span class="spinner" id="schematicSpinner" hidden aria-hidden="true"></span>
+              <span id="schematicBtnLabel">生成审查草稿</span>
+            </button>
             <button id="schematicCancel" class="btn btn-text" type="button" hidden>取消</button>
             <p id="schematicBlock" class="hint"></p>
           </div>
@@ -631,6 +724,18 @@
           <p id="schematicStatus" class="hint" aria-live="polite"></p>
         </form>
         <div id="schematicResult"></div>
+        <section class="card" id="knowledgeReviewCard" aria-labelledby="netlistTitle">
+          <h2 id="netlistTitle">用设计约束审查网表</h2>
+          <p class="hint">这里使用资料页里已经复核的硬性约束。未复核、互相冲突或缺少额定值时，结论保持待核实或无法判定。</p>
+          <form id="netlistForm" class="netlist-form">
+            <label class="hint">网表 JSON<input id="netlistFile" type="file" accept=".json,application/json" /></label>
+            <textarea id="netlistJson" spellcheck="false" placeholder="把网表 JSON 贴在这里，或从上面选择文件" aria-label="网表 JSON"></textarea>
+            <div class="actions">
+              <button id="netlistBtn" class="btn btn-primary" type="submit">开始约束审查</button>
+            </div>
+          </form>
+          <div id="knowledgeResult"></div>
+        </section>
         <section class="card" aria-labelledby="historyTitle">
           <h2 id="historyTitle">最近审查</h2>
           <div id="historyList"></div>
@@ -640,17 +745,17 @@
       <section id="page-materials" hidden>
         <div class="page-head">
           <h1 tabindex="-1">资料</h1>
-          <p id="materialProgress" class="hint">2 项中已就绪 0 项</p>
+          <p id="materialProgress" class="hint">已提供 0 项，都可以不提供</p>
         </div>
-        <p class="hint">抽出后可按章节勾选。全文过长时，生成审查会按图纸再裁一刀，只保留引脚、电源和典型应用相关章节。扫描件请先做成可复制文本。</p>
+        <p class="hint">产品定义和 Datasheet 都可以不提供，也可以各传很多份，每类最多 120 份。缺的部分按通用规则审查。抽出后可按章节勾选。全文过长时，生成审查会按图纸再裁一刀，只保留引脚、电源和典型应用相关章节。扫描件请先做成可复制文本。</p>
         <div class="pair">
           <article class="card" id="productCard">
             <header class="card-title"><h2>产品定义（Word）</h2><span id="productBadge" class="badge todo">未就绪</span></header>
             <div id="productDrop" class="dropzone" tabindex="0" role="button" aria-label="上传产品定义 Word">
               <strong>拖入 Word，或点击选择</strong>
-              <span>.doc / .docx，也可以粘贴</span>
+              <span>可以一次选很多份 .doc / .docx，也可以粘贴</span>
             </div>
-            <input id="productFile" class="file-input" type="file" accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" tabindex="-1" aria-hidden="true" />
+            <input id="productFile" class="file-input" type="file" accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple tabindex="-1" aria-hidden="true" />
             <div id="productFileCard" hidden></div>
             <p id="productStatus" class="hint" aria-live="polite"></p>
             <p class="file-actions"><button type="button" id="productBtn" class="btn btn-secondary" disabled>抽出文字</button></p>
@@ -684,13 +789,14 @@
             <header class="card-title"><h2>Datasheet（PDF）</h2><span id="datasheetBadge" class="badge todo">未就绪</span></header>
             <div id="datasheetDrop" class="dropzone" tabindex="0" role="button" aria-label="上传 Datasheet PDF">
               <strong>拖入 PDF，或点击选择</strong>
-              <span>也可以粘贴。扫描件请先做 OCR</span>
+              <span>可以一次选很多份，也可以粘贴。缺字的页和图多的页会识图，读到的字写入摘录</span>
             </div>
-            <input id="datasheetFile" class="file-input" type="file" accept=".pdf,application/pdf" tabindex="-1" aria-hidden="true" />
+            <input id="datasheetFile" class="file-input" type="file" accept=".pdf,application/pdf" multiple tabindex="-1" aria-hidden="true" />
             <div id="datasheetFileCard" hidden></div>
             <p id="datasheetStatus" class="hint" aria-live="polite"></p>
             <p class="file-actions"><button type="button" id="datasheetBtn" class="btn btn-secondary" disabled>抽出文字</button></p>
             <p id="datasheetScan" class="callout warn" hidden></p>
+            <p id="datasheetFigures" class="callout warn" hidden></p>
             <div id="datasheetChapters" hidden></div>
             <div class="editor" data-editor="datasheet">
               <div class="editor-bar">
@@ -717,6 +823,37 @@
             </div>
           </article>
         </div>
+        <section class="card" id="knowledgeCard" aria-labelledby="knowledgeTitle">
+          <header class="card-title"><h2 id="knowledgeTitle">设计约束</h2></header>
+          <p class="hint">导入带约束条目的文本或 PDF。摘录必须出现在正文里，并写明页码。复核通过之前，这些条目不能单独支撑确定结论。</p>
+          <form id="knowledgeForm" class="knowledge-form">
+            <label class="hint">标题<input id="knowledgeTitleInput" type="text" required placeholder="例如 SOM 硬件设计指南" /></label>
+            <label class="hint">类型
+              <select id="knowledgeKind">
+                <option value="som_guide">SOM 硬件设计指南</option>
+                <option value="datasheet">Datasheet</option>
+                <option value="product_spec">产品需求</option>
+                <option value="reference_design">参考设计</option>
+                <option value="application_note">应用笔记</option>
+                <option value="errata">勘误</option>
+                <option value="architecture">硬件架构</option>
+                <option value="power_tree">电源树</option>
+                <option value="interface_spec">接口规范</option>
+                <option value="pin_table">引脚表</option>
+                <option value="other">其他</option>
+              </select>
+            </label>
+            <label class="hint">修订<input id="knowledgeRevision" type="text" placeholder="例如 1.0" /></label>
+            <label class="hint span-3">文件<input id="knowledgeFile" type="file" accept=".pdf,.txt,text/plain,application/pdf" /></label>
+            <label class="hint span-3">或粘贴正文<textarea id="knowledgeText" spellcheck="false" placeholder="正文里写明限值，并用约束块标出来源页、摘录和适用范围" aria-label="设计资料正文"></textarea></label>
+            <div class="actions span-3">
+              <button id="knowledgeImport" class="btn btn-primary" type="submit">导入资料</button>
+            </div>
+          </form>
+          <p id="knowledgeStatus" class="hint" aria-live="polite"></p>
+          <div id="knowledgeConflicts"></div>
+          <div id="knowledgeList"></div>
+        </section>
         <div class="dock">
           <div class="dock-inner">
             <p id="materialsNextReason" class="hint dock-reason"></p>
@@ -727,18 +864,18 @@
       </section>
     </div>
   </main>
-  <footer class="legal">辅助预审，不构成法律意见。审查项为草稿，需人工复核。</footer>
+  <footer class="legal">辅助预审，不构成设计签核。审查项为草稿，需人工复核。</footer>
   <div id="toast" class="toast" role="status" hidden></div>
 
   <dialog id="llmDialog">
     <h2>模型设置</h2>
-    <p id="llmSummary" class="badge todo">Gemini · gemini-2.5-pro · 代理</p>
+    <p id="llmSummary" class="badge todo">Gemini · gemini-3.5-flash · 代理 · 外发已开</p>
     <form id="llmForm">
       <div class="grid-2">
         <div class="field">
           <label for="llmProvider">模型</label>
           <select id="llmProvider">
-            <option value="gemini" selected>Gemini · gemini-2.5-pro</option>
+            <option value="gemini" selected>Gemini · gemini-3.5-flash</option>
             <option value="deepseek">DeepSeek · deepseek-v4-flash</option>
           </select>
         </div>
@@ -759,9 +896,15 @@
           </select>
         </div>
       </div>
-      <div class="field"><label for="llmKey">API 密钥</label><input id="llmKey" type="password" autocomplete="off" placeholder="由你自己填写，只留在这次运行的内存里" /></div>
-      <label class="hint" for="llmOutbound"><input id="llmOutbound" type="checkbox" /> 允许外发。打开后，原理图审查和连通测试会把相关片段发到接口。</label>
-      <p id="llmKeyHint" class="hint">国内访问 Gemini 走上面的代理。密钥用环境变量 GEMINI_API_KEY，不会写入配置文件。原理图审查和连通测试都发往这个代理。</p>
+      <div class="field">
+        <label for="llmKey">API 密钥</label>
+        <div class="key-box" id="llmKeyBox">
+          <input id="llmKey" type="password" autocomplete="off" placeholder="由你自己填写，只留在这次运行的内存里" />
+        </div>
+      </div>
+      <p id="llmKeyState" class="hint" hidden>已配置。星号只是占位，复制不到密钥。要更换时直接输入新密钥。</p>
+      <label class="hint" for="llmOutbound"><input id="llmOutbound" type="checkbox" checked /> 允许外发。勾选后，原理图审查、手册查找和连通测试会把相关片段发到接口。</label>
+      <p id="llmKeyHint" class="hint">国内访问 Gemini 走上面的代理。密钥用环境变量 GEMINI_API_KEY，不会写入配置文件。原理图审查和连通测试都发往这个代理。单次审查最多输出 65536 token。</p>
       <p class="actions">
         <button class="btn btn-primary" type="submit">保存设置</button>
         <button id="llmPing" class="btn btn-secondary" type="button">测试连通</button>
@@ -771,17 +914,39 @@
     </form>
   </dialog>
 
+  <dialog id="sheetDialog">
+    <h2 id="sheetTitle">手册</h2>
+    <p id="sheetNote" class="hint"></p>
+    <iframe id="sheetFrame" title="Datasheet 前两页" hidden></iframe>
+    <pre id="sheetPreview" class="sheet-preview"></pre>
+    <p class="actions">
+      <button type="button" id="sheetReload" class="btn btn-secondary">重新搜索</button>
+      <button type="button" id="sheetLoad" class="btn btn-secondary">载入摘录</button>
+      <button type="button" id="sheetPick" class="btn btn-secondary">手动上传 PDF</button>
+      <button type="button" id="sheetClose" class="btn btn-text">关闭</button>
+    </p>
+    <input id="sheetUpload" type="file" accept=".pdf,application/pdf" hidden />
+  </dialog>
+
   <script>
     const LIMITS = {
-      hardChars: 48000,
-      softChars: 12000,
+      hardChars: 600000,
+      softChars: 80000,
       scanMinChars: 200,
       maxPdfBytes: 40 * 1024 * 1024,
-      maxPdfPages: 40,
+      maxPdfPages: 800,
+      maxFiles: 120,
       pdfInspectBytes: 12 * 1024 * 1024,
       tokenPerChar: 1.6
     };
     const CHECK_LABEL = { numeric: "数值", presence: "有无", connectivity: "连接", qualitative: "定性" };
+    const RULE_TAGS = [
+      ["power_supply", "电源与接地"],
+      ["high_speed_digital", "信号与接口"],
+      ["component_derating", "器件选型与降额"],
+      ["dft_hygiene", "可测试性与工程规范"],
+      ["rf_bias", "模拟与射频"]
+    ];
     const MATERIAL_KEY = { product: "sch-material-product", datasheet: "sch-material-datasheet" };
     const MATERIAL_BOX = { product: "#productExcerpt", datasheet: "#datasheetExcerpt" };
     const MATERIAL_STATUS = { product: "#productStatus", datasheet: "#datasheetStatus" };
@@ -796,11 +961,14 @@
     let reviewAbort = null;
     let stageTimer = null;
     let previewZoom = "100";
+    let previewIndex = 0;
     let pendingScroll = "";
     let toastTimer = 0;
-    const llmKept = { provider: "gemini", model: "gemini-2.5-pro", max_tokens: 8192, retries: 2, cache: true, prompt_version: "2026-10-21", outbound_allowed: false, api_key_configured: false };
+    let sheetLookupToken = 0;
+    let sheetTarget = "";
+    const llmKept = { provider: "gemini", model: "gemini-3.5-flash", max_tokens: 8192, retries: 2, cache: true, prompt_version: "2026-10-21", outbound_allowed: true, api_key_configured: false };
     let llmPresets = {
-      gemini: { model: "gemini-2.5-pro", base_url: "http://108.160.140.173:8443", label: "Gemini · gemini-2.5-pro" },
+      gemini: { model: "gemini-3.5-flash", base_url: "http://108.160.140.173:8443", label: "Gemini · gemini-3.5-flash" },
       deepseek: { model: "deepseek-v4-flash", base_url: "https://api.deepseek.com", label: "DeepSeek · deepseek-v4-flash" }
     };
     const llmAddress = {
@@ -809,10 +977,10 @@
     };
 
     function emptyMaterial() {
-      return { filename: "", text: "", rawText: "", limit: LIMITS.hardChars, chapters: [], savedAt: 0, updatedAt: 0, fileSize: 0, scanSuspect: false, undo: [], file: null, dirty: false, saveError: "", diverged: false, busy: false };
+      return { filename: "", text: "", rawText: "", limit: LIMITS.hardChars, chapters: [], savedAt: 0, updatedAt: 0, fileSize: 0, scanSuspect: false, figuresNote: "", undo: [], file: null, entries: [], dirty: false, saveError: "", diverged: false, busy: false };
     }
     function emptySchematic() {
-      return { file: null, url: "", checking: false, ok: false, reason: "", note: "", checks: [], pages: null, sha8: "", keywords: [] };
+      return { files: [], checking: false, ok: false, reason: "", note: "", sha8: "", keywords: [] };
     }
     function escapeHtml(value) {
       return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -903,13 +1071,11 @@
     }
     function paintSteps() {
       const page = document.body.dataset.page || "schematic";
-      const materialsDone = materialState("product").ok && materialState("datasheet").ok;
+      const materialsDone = materialState("product").label !== "超长" && materialState("datasheet").label !== "超长";
       const reviewDone = Boolean(currentResult);
       const states = {
         materials: page === "materials" ? "current" : materialsDone ? "done" : "todo",
-        schematic: page === "schematic" ? "current" : reviewDone ? "done" : "todo",
-        report: "todo",
-        basis: "todo"
+        schematic: page === "schematic" ? "current" : reviewDone ? "done" : "todo"
       };
       const marks = { current: "●", done: "✓", todo: "○" };
       const words = { current: "当前", done: "已就绪", todo: "未完成" };
@@ -933,8 +1099,28 @@
       document.querySelector("#llmBaseLabel").textContent = deepseek ? "接口地址" : "代理地址";
       document.querySelector("#llmKeyHint").textContent = deepseek
         ? "密钥不会写入配置文件。连通测试发往上面的接口。原理图审查请改选 Gemini，国内访问会走代理。"
-        : "国内访问 Gemini 走上面的代理。密钥用环境变量 GEMINI_API_KEY，不会写入配置文件。原理图审查和连通测试都发往这个代理。";
+        : "国内访问 Gemini 走上面的代理。密钥用环境变量 GEMINI_API_KEY，不会写入配置文件。原理图审查和连通测试都发往这个代理。单次审查最多输出 65536 token。";
       paintPrivacy();
+      paintKeyMask();
+    }
+    function keyConfigured() {
+      const provider = currentProvider();
+      if (llmKept.keys && Object.prototype.hasOwnProperty.call(llmKept.keys, provider)) return Boolean(llmKept.keys[provider]);
+      return Boolean(llmKept.api_key_configured);
+    }
+    function paintKeyMask() {
+      const input = document.querySelector("#llmKey");
+      const box = document.querySelector("#llmKeyBox");
+      const note = document.querySelector("#llmKeyState");
+      const show = keyConfigured() && !input.value;
+      box.classList.toggle("masked", show);
+      note.hidden = !show;
+      input.placeholder = show ? "" : "由你自己填写，只留在这次运行的内存里";
+    }
+    function typedApiKey() {
+      const value = document.querySelector("#llmKey").value;
+      if (!value.trim() || value.trim() === "********") return "";
+      return value;
     }
     function paintPrivacy() {
       const outbound = document.querySelector("#llmOutbound").checked;
@@ -977,12 +1163,13 @@
           filename: typeof data.filename === "string" ? data.filename : "",
           text: typeof data.text === "string" ? data.text : "",
           rawText: typeof data.rawText === "string" ? data.rawText : (typeof data.text === "string" ? data.text : ""),
-          limit: Number(data.limit) || LIMITS.hardChars,
+          limit: Math.max(Number(data.limit) || 0, LIMITS.hardChars),
           chapters: Array.isArray(data.chapters) ? data.chapters : [],
           savedAt: Number(data.savedAt) || 0,
           updatedAt: Number(data.updatedAt) || 0,
           fileSize: Number(data.fileSize) || 0,
-          scanSuspect: Boolean(data.scanSuspect)
+          scanSuspect: Boolean(data.scanSuspect),
+          figuresNote: typeof data.figuresNote === "string" ? data.figuresNote : ""
         };
       } catch (error) {
         return emptyMaterial();
@@ -996,7 +1183,7 @@
     }
     function materialState(role) {
       const text = sentText(role);
-      const limit = materials[role].limit || LIMITS.hardChars;
+      const limit = Math.max(materials[role].limit || 0, LIMITS.hardChars);
       if (!text) return { ok: false, label: "未就绪", level: "todo" };
       if (text.length > limit) {
         if (role === "datasheet") return { ok: true, label: "待裁剪", level: "warn" };
@@ -1007,9 +1194,9 @@
     function meterOf(role) {
       const text = sentText(role);
       const n = text.length;
-      const limit = materials[role].limit || LIMITS.hardChars;
+      const limit = Math.max(materials[role].limit || 0, LIMITS.hardChars);
       const tokens = Math.ceil(n * LIMITS.tokenPerChar);
-      const base = `${n.toLocaleString("zh-CN")} 字 / 约 ${tokens.toLocaleString("zh-CN")} token / ${limit.toLocaleString("zh-CN")}`;
+      const base = `${n.toLocaleString("zh-CN")} 字 / 约 ${tokens.toLocaleString("zh-CN")} token / 上限 ${limit.toLocaleString("zh-CN")} 字`;
       if (!n) return { text: `${base}。上传后会抽出文字。`, level: "" };
       if (n > limit) {
         if (role === "datasheet") return { text: `${base}。超过上限。生成时只送引脚、电源和典型应用相关章节。`, level: "warn" };
@@ -1033,7 +1220,8 @@
         savedAt: Date.now(),
         updatedAt: stored.updatedAt,
         fileSize: stored.fileSize,
-        scanSuspect: stored.scanSuspect
+        scanSuspect: stored.scanSuspect,
+        figuresNote: stored.figuresNote || ""
       };
       try {
         sessionStorage.setItem(MATERIAL_KEY[role], JSON.stringify(payload));
@@ -1079,9 +1267,25 @@
       if (stored.savedAt) { el.textContent = `已保存 · ${formatClock(stored.savedAt)}`; return; }
       el.textContent = stored.text ? "已留在本页" : "还没有保存";
     }
+    function formatFigureNote(data) {
+      const lines = (data.figures || []).filter((item) => item && item.text).map((item) => `第 ${item.page} 页：${item.text}`);
+      const head = data.figure_note || "";
+      if (!head && !lines.length) return "";
+      return [head, ...lines].join("\n\n");
+    }
+    function paintFigures() {
+      const el = document.querySelector("#datasheetFigures");
+      if (!el) return;
+      const entries = materials.datasheet.entries || [];
+      const fromEntries = entries.map((item) => item.figureNote || "").filter(Boolean).join("\n\n");
+      const note = entries.length ? fromEntries : (materials.datasheet.figuresNote || "");
+      materials.datasheet.figuresNote = note;
+      el.hidden = !note;
+      el.textContent = note;
+    }
     function paintScan(role) {
       const el = document.querySelector(`#${role}Scan`);
-      const suspect = materials[role].scanSuspect && sentText(role).length < LIMITS.scanMinChars;
+      const suspect = materials[role].scanSuspect && sentText(role).length < LIMITS.scanMinChars && !(role === "datasheet" && materials.datasheet.figuresNote);
       el.hidden = !suspect;
       el.textContent = suspect ? "疑似扫描件，请先 OCR。抽出的文字很少，可能是图片。请先做文字识别，或导出可复制文本后再上传。" : "";
     }
@@ -1101,17 +1305,18 @@
         const hint = document.querySelector(`#${role}ChapterHint`);
         hint.textContent = materials[role].diverged && materials[role].chapters.length ? "摘录已手工改过。再勾选章节会按勾选重新合成，可用撤销找回。" : "";
         paintSaveState(role);
+        if (role === "datasheet") paintFigures();
         paintScan(role);
         paintMaterialButton(role);
       });
-      document.querySelector("#materialProgress").textContent = `2 项中已就绪 ${ready} 项`;
+      document.querySelector("#materialProgress").textContent = `已提供 ${ready} 项，都可以不提供`;
       const reasons = [];
-      if (!materialState("product").ok) reasons.push(materialState("product").label === "超长" ? "产品定义超过字数上限，请先删减" : "请准备产品定义（Word）");
-      if (!materialState("datasheet").ok) reasons.push(materialState("datasheet").label === "超长" ? "Datasheet 超过字数上限，请先删减" : "请准备 Datasheet（PDF）");
+      if (materialState("product").label === "超长") reasons.push("产品定义超过字数上限，请先删减");
+      if (materialState("datasheet").label === "超长") reasons.push("Datasheet 超过字数上限，请先删减");
       const next = document.querySelector("#materialsNext");
       const reason = document.querySelector("#materialsNextReason");
       next.disabled = reasons.length > 0;
-      reason.textContent = reasons.join("；");
+      reason.textContent = reasons.join("；") || "产品定义和 Datasheet 都可以不提供。缺的部分按通用规则审查。";
       paintReady();
       paintSchematicGate();
       paintSteps();
@@ -1119,9 +1324,10 @@
     function paintMaterialButton(role) {
       const button = document.querySelector(MATERIAL_BUTTON[role]);
       if (!button) return;
-      const hasFile = Boolean(materials[role].file || materials[role].filename);
+      const hasFile = Boolean((materials[role].entries || []).length || materials[role].file || materials[role].filename);
       button.disabled = !hasFile || materials[role].busy;
-      button.textContent = materials[role].busy ? "正在抽出" : hasFile ? "重新抽出" : "抽出文字";
+      const busyLabel = role === "datasheet" ? "正在抽出并识图" : "正在抽出";
+      button.textContent = materials[role].busy ? busyLabel : hasFile ? "重新抽出" : "抽出文字";
       const attention = Boolean(materials[role].file) && !materials[role].rawText;
       button.classList.toggle("btn-primary", attention);
       button.classList.toggle("btn-secondary", !attention);
@@ -1130,29 +1336,28 @@
       const state = materialState(role);
       const stored = materials[role];
       const n = sentText(role).length;
-      if (!stored.filename && !n) return { ok: false, detail: "未提供" };
-      if (!state.ok && !n) return { ok: false, detail: "未提供" };
-      const name = stored.filename || "未命名";
+      if (!stored.filename && !n) return { ok: true, optional: true, detail: "未提供，可以跳过" };
+      if (!state.ok && !n) return { ok: true, optional: true, detail: "未提供，可以跳过" };
+      const count = (stored.entries || []).length;
+      const name = count > 1 ? `${count} 份` : (stored.filename || "未命名");
       const when = stored.updatedAt ? ` · 更新于 ${formatClock(stored.updatedAt)}` : "";
-      if (state.label === "超长") return { ok: false, detail: `${name} · ${n.toLocaleString("zh-CN")} 字，超过上限${when}` };
-      if (state.label === "待裁剪") return { ok: true, detail: `${name} · ${n.toLocaleString("zh-CN")} 字，生成时会裁剪${when}` };
-      if (!state.ok) return { ok: false, detail: "未提供" };
-      return { ok: true, detail: `${name} · 约 ${n.toLocaleString("zh-CN")} 字${when}` };
+      if (state.label === "超长") return { ok: false, optional: false, detail: `${name} · ${n.toLocaleString("zh-CN")} 字，超过上限${when}` };
+      if (state.label === "待裁剪") return { ok: true, optional: false, detail: `${name} · ${n.toLocaleString("zh-CN")} 字，生成时会裁剪${when}` };
+      if (!state.ok) return { ok: true, optional: true, detail: "未提供，可以跳过" };
+      return { ok: true, optional: false, detail: `${name} · 约 ${n.toLocaleString("zh-CN")} 字${when}` };
     }
     function paintReady() {
       const rows = [
         { role: "product", label: "产品定义（Word）" },
         { role: "datasheet", label: "Datasheet（PDF）" }
       ].map((row) => Object.assign(row, describeMaterial(row.role)));
-      const missing = rows.filter((row) => !row.ok);
-      const shown = missing.length ? missing : rows;
       const host = document.querySelector("#readyList");
-      host.innerHTML = shown.map((row) => `
+      host.innerHTML = rows.map((row) => `
         <li class="ready-row">
-          <span class="mark ${row.ok ? "ok" : "bad"}" aria-hidden="true">${row.ok ? "✓" : "✗"}</span>
+          <span class="mark ${row.ok ? (row.optional ? "" : "ok") : "bad"}" aria-hidden="true">${row.ok ? (row.optional ? "○" : "✓") : "✗"}</span>
           <span>${escapeHtml(row.label)}</span>
           <span class="ready-detail">${escapeHtml(row.detail)}</span>
-          ${row.ok ? "" : `<button type="button" class="btn btn-secondary" data-go="${row.role}">去上传</button>`}
+          ${row.ok ? "" : `<button type="button" class="btn btn-secondary" data-go="${row.role}">去删减</button>`}
         </li>`).join("");
       host.querySelectorAll("[data-go]").forEach((button) => {
         button.addEventListener("click", () => goMaterials(button.dataset.go));
@@ -1317,97 +1522,198 @@
       if (n < 40) return true;
       return fileSize > 100 * 1024 && n < LIMITS.scanMinChars;
     }
+    function materialMarker(name) {
+      return `【${String(name || "未命名").replace(/[】\r\n]/g, " ")}】`;
+    }
+    function joinedMaterial(role) {
+      return (materials[role].entries || []).map((item) => `${materialMarker(item.name)}\n${String(item.text || "").trim()}`).join("\n\n");
+    }
+    function applyMaterialJoin(role) {
+      const stored = materials[role];
+      const text = joinedMaterial(role);
+      stored.rawText = text;
+      stored.filename = (stored.entries || []).map((item) => item.name).join("、");
+      stored.fileSize = (stored.entries || []).reduce((sum, item) => sum + (item.size || 0), 0);
+      stored.file = stored.entries?.[0]?.file || null;
+      stored.updatedAt = stored.entries?.length ? Date.now() : stored.updatedAt;
+      stored.scanSuspect = (stored.entries || []).some((item) => looksScanned(item.text, item.size));
+      if (!stored.diverged) {
+        stored.chapters = text.trim()
+          ? splitChapters(text).map((ch, index) => Object.assign(ch, { id: `${role}-${index}`, checked: true }))
+          : [];
+        stored.undo = [];
+        const box = document.querySelector(MATERIAL_BOX[role]);
+        box.value = text;
+        stored.text = text;
+        renderChapters(role);
+        highlightFind(role);
+        paintGutter(role);
+      }
+      renderMaterialFile(role);
+      persist(role);
+      paintMaterialStatus();
+    }
     function renderMaterialFile(role) {
       const card = document.querySelector(`#${role}FileCard`);
-      const drop = document.querySelector(`#${role}Drop`);
       const stored = materials[role];
-      if (!stored.filename && !stored.file) { card.hidden = true; drop.hidden = false; return; }
-      drop.hidden = true;
+      const entries = stored.entries || [];
+      if (!entries.length && !stored.filename) { card.hidden = true; card.innerHTML = ""; return; }
       card.hidden = false;
-      const name = stored.file ? stored.file.name : stored.filename;
-      const size = stored.file ? stored.file.size : stored.fileSize;
-      card.innerHTML = `<div class="file-card-body"><div>
-          <span class="name">${escapeHtml(name)}</span>
-          <p class="hint">${size ? escapeHtml(formatBytes(size)) : "刷新后需重新选择文件才能再抽出"}</p>
-          <p class="file-actions">
-            <button type="button" class="btn btn-secondary" data-reselect="${role}">重新选择</button>
-            <button type="button" class="btn btn-text" data-remove="${role}">移除</button>
-          </p>
-        </div></div>`;
-      card.querySelector("[data-reselect]").addEventListener("click", () => pickMaterial(role));
-      card.querySelector("[data-remove]").addEventListener("click", () => {
+      if (!entries.length) {
+        card.innerHTML = `<div class="file-row"><div><span class="name">${escapeHtml(stored.filename)}</span><p class="hint">刷新后需重新选择文件才能再抽出</p></div></div>`;
+        return;
+      }
+      const rows = entries.map((item, index) => `<li class="file-row"><div>
+          <span class="name">${escapeHtml(item.name)}</span>
+          <p class="hint">${item.size ? escapeHtml(formatBytes(item.size)) : ""}</p>
+        </div><button type="button" class="btn btn-text" data-remove-entry="${index}">移除</button></li>`).join("");
+      card.innerHTML = `<ul class="file-list">${rows}</ul>`;
+      card.querySelectorAll("[data-remove-entry]").forEach((button) => {
+        button.addEventListener("click", () => removeMaterialEntry(role, Number(button.dataset.removeEntry)));
+      });
+    }
+    function removeMaterialEntry(role, index) {
+      const stored = materials[role];
+      stored.entries.splice(index, 1);
+      if (!stored.entries.length) {
         stored.file = null;
-        stored.filename = "";
         stored.fileSize = 0;
+        if (role === "datasheet") stored.figuresNote = "";
+        if (!stored.diverged) stored.filename = "";
+      }
+      if (!stored.diverged) applyMaterialJoin(role);
+      else {
+        stored.filename = stored.entries.map((item) => item.name).join("、");
         renderMaterialFile(role);
         persist(role);
         paintMaterialStatus();
-        toast("已移除文件，摘录还在。");
-      });
+        toast("已移除文件。摘录里的文字还在，不需要的段落请在摘录里删掉。");
+      }
     }
     function pickMaterial(role) {
       const input = document.querySelector(role === "product" ? "#productFile" : "#datasheetFile");
       input.value = "";
       input.click();
     }
-    async function uploadMaterial(role, file) {
-      const problem = acceptMaterial(role, file);
-      const status = document.querySelector(MATERIAL_STATUS[role]);
-      if (problem) { showStatus(status, problem, "bad"); return; }
-      materials[role].file = file;
-      materials[role].filename = file.name;
-      materials[role].fileSize = file.size;
-      materials[role].busy = true;
-      renderMaterialFile(role);
-      const button = document.querySelector(MATERIAL_BUTTON[role]);
-      if (button) {
-        button.disabled = true;
-        button.textContent = "正在抽出";
+    async function extractOne(role, file) {
+      const body = new FormData();
+      body.set("role", role);
+      body.set("file", file);
+      if (role === "datasheet") body.set("read_figures", "1");
+      const response = await fetch("/api/schematic/extract", { method: "POST", body });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return { error: explain(data.detail, "没有抽出文字。请确认文件里有可复制的正文，扫描件请先做 OCR。") };
       }
-      showStatus(status, "正在抽出文字。", "");
-      try {
-        const body = new FormData();
-        body.set("role", role);
-        body.set("file", file);
-        const response = await fetch("/api/schematic/extract", { method: "POST", body });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          const message = explain(data.detail, "没有抽出文字。请确认文件里有可复制的正文，扫描件请先做 OCR。");
-          showStatus(status, message, "bad");
-          materials[role].scanSuspect = /扫描|可复制|没有抽出/.test(message);
-          paintScan(role);
-          return;
+      return {
+        text: data.text || "",
+        filename: data.filename || file.name,
+        limit: Number(data.limit) || LIMITS.hardChars,
+        tooLong: Boolean(data.too_long),
+        figureNote: role === "datasheet" ? formatFigureNote(data) : ""
+      };
+    }
+    async function addMaterialFiles(role, fileList) {
+      const incoming = [...fileList];
+      const status = document.querySelector(MATERIAL_STATUS[role]);
+      const stored = materials[role];
+      stored.entries = stored.entries || [];
+      const wasDiverged = stored.diverged;
+      const added = [];
+      let tooLong = false;
+      for (const file of incoming) {
+        if (stored.entries.length >= LIMITS.maxFiles) {
+          showStatus(status, `一次最多 ${LIMITS.maxFiles} 份。多出来的没有加入。`, "bad");
+          break;
         }
-        const text = data.text || "";
-        materials[role].scanSuspect = looksScanned(text, file.size);
-        materials[role].rawText = text;
-        materials[role].limit = Number(data.limit) || LIMITS.hardChars;
-        materials[role].filename = data.filename || file.name;
-        materials[role].updatedAt = Date.now();
-        materials[role].chapters = splitChapters(text).map((ch, index) => Object.assign(ch, { id: `${role}-${index}`, checked: true }));
-        materials[role].undo = [];
-        materials[role].diverged = false;
-        document.querySelector(MATERIAL_BOX[role]).value = text;
-        materials[role].text = text;
-        renderChapters(role);
-        highlightFind(role);
-        paintGutter(role);
-        persist(role);
-        if (data.too_long || text.length > materials[role].limit) {
-          showStatus(status, role === "datasheet"
-            ? "已抽出全文。字数超过上限，生成审查时会按图纸裁剪，只保留引脚、电源和典型应用相关章节。"
-            : "已抽出全文，字数超过审查上限。请删减后再进入审查。", "warn");
+        const problem = acceptMaterial(role, file);
+        if (problem) { showStatus(status, problem, "bad"); continue; }
+        if (stored.entries.some((item) => item.name === file.name && item.size === file.size)) continue;
+        stored.busy = true;
+        paintMaterialButton(role);
+        showStatus(status, `正在抽出 ${file.name}`, "");
+        try {
+          const data = await extractOne(role, file);
+          if (data.error) {
+            showStatus(status, data.error, "bad");
+            stored.scanSuspect = /扫描|可复制|没有抽出/.test(data.error);
+            paintScan(role);
+            continue;
+          }
+          stored.limit = data.limit;
+          tooLong = tooLong || data.tooLong || data.text.length > stored.limit;
+          stored.entries.push({ name: data.filename, size: file.size, text: data.text, file, figureNote: data.figureNote || "" });
+          added.push(stored.entries[stored.entries.length - 1]);
+        } catch (error) {
+          showStatus(status, "连不上本机工作台。请确认启动脚本还在运行，然后重试。", "bad");
+          break;
         }
-        else if (materials[role].scanSuspect) showStatus(status, "疑似扫描件，请先 OCR。抽出的文字很少，可能是图片。请先做文字识别，或导出可复制文本后再上传。", "warn");
-        else if (materials[role].saveError) showStatus(status, materials[role].saveError, "bad");
-        else showStatus(status, "已抽出文字。可以按章节勾选，也可以在摘录里微调。", "");
-      } catch (error) {
-        showStatus(status, "连不上本机工作台。请确认启动脚本还在运行，然后重试。", "bad");
-      } finally {
-        materials[role].busy = false;
+      }
+      stored.busy = false;
+      if (!added.length) {
         paintMaterialButton(role);
         paintMaterialStatus();
+        return;
       }
+      if (wasDiverged) {
+        const piece = added.map((item) => `\n\n${materialMarker(item.name)}\n${item.text.trim()}`).join("");
+        setExcerpt(role, excerptValue(role) + piece, true);
+        stored.diverged = true;
+        stored.rawText = joinedMaterial(role);
+        stored.filename = stored.entries.map((item) => item.name).join("、");
+        stored.fileSize = stored.entries.reduce((sum, item) => sum + (item.size || 0), 0);
+        renderMaterialFile(role);
+        persist(role);
+      } else {
+        stored.diverged = false;
+        applyMaterialJoin(role);
+      }
+      paintMaterialButton(role);
+      if (role === "datasheet") paintFigures();
+      const text = sentText(role);
+      if (tooLong || text.length > (stored.limit || LIMITS.hardChars)) {
+        showStatus(status, role === "datasheet"
+          ? "已抽出全文。字数超过上限，生成审查时会按图纸裁剪，只保留引脚、电源和典型应用相关章节。"
+          : "已抽出全文，字数超过审查上限。请删减后再进入审查。", "warn");
+      } else if (role === "datasheet" && materials.datasheet.figuresNote) showStatus(status, "图中文字已写入摘录，审查可以引用。", "");
+      else if (stored.scanSuspect) showStatus(status, "疑似扫描件，请先 OCR。抽出的文字很少，可能是图片。请先做文字识别，或导出可复制文本后再上传。", "warn");
+      else if (stored.saveError) showStatus(status, stored.saveError, "bad");
+      else showStatus(status, `已抽出 ${stored.entries.length} 份。可以按章节勾选，也可以在摘录里微调。`, "");
+    }
+    async function reextractMaterial(role) {
+      const stored = materials[role];
+      const entries = (stored.entries || []).filter((item) => item.file);
+      if (!entries.length) { pickMaterial(role); return; }
+      const status = document.querySelector(MATERIAL_STATUS[role]);
+      stored.busy = true;
+      paintMaterialButton(role);
+      for (const entry of entries) {
+        showStatus(status, `正在抽出 ${entry.name}`, "");
+        try {
+          const data = await extractOne(role, entry.file);
+          if (data.error) {
+            showStatus(status, data.error, "bad");
+            stored.busy = false;
+            paintMaterialButton(role);
+            return;
+          }
+          entry.text = data.text;
+          entry.figureNote = data.figureNote || "";
+          entry.name = data.filename || entry.name;
+          stored.limit = data.limit;
+        } catch (error) {
+          showStatus(status, "连不上本机工作台。请确认启动脚本还在运行，然后重试。", "bad");
+          stored.busy = false;
+          paintMaterialButton(role);
+          return;
+        }
+      }
+      stored.busy = false;
+      stored.diverged = false;
+      applyMaterialJoin(role);
+      showStatus(status, role === "datasheet" && materials.datasheet.figuresNote
+        ? "已重新抽出。图中文字已写入摘录，审查可以引用。"
+        : `已重新抽出 ${entries.length} 份。`, "");
     }
     function restoreMaterials() {
       ["product", "datasheet"].forEach((role) => {
@@ -1481,33 +1787,46 @@
       }
       return { ok, reason, note, checks, pages: stats.pages, keywords: stats.keywords };
     }
+    function previewEntry() {
+      const files = schematicState.files || [];
+      if (!files.length) return null;
+      if (previewIndex >= files.length) previewIndex = 0;
+      return files[previewIndex];
+    }
+    function refreshSchematicSummary() {
+      const files = schematicState.files || [];
+      schematicState.checking = files.some((item) => item.checking);
+      schematicState.ok = files.length > 0 && files.every((item) => item.ok);
+      const bad = files.find((item) => !item.checking && !item.ok);
+      schematicState.reason = bad ? bad.reason : "";
+      schematicState.note = files.find((item) => item.note)?.note || "";
+      const keys = [];
+      files.forEach((item) => {
+        (item.keywords || []).forEach((key) => { if (!keys.includes(key) && keys.length < 200) keys.push(key); });
+      });
+      schematicState.keywords = keys;
+    }
     function renderSchematicFile() {
       const card = document.querySelector("#schematicFileCard");
-      const drop = document.querySelector("#schematicDrop");
-      if (!schematicState.file) { card.hidden = true; card.innerHTML = ""; drop.hidden = false; return; }
-      drop.hidden = true;
+      const files = schematicState.files || [];
+      if (!files.length) { card.hidden = true; card.innerHTML = ""; return; }
       card.hidden = false;
-      const checks = (schematicState.checks || []).map((item) => `<li class="check ${item.level}"><span aria-hidden="true">${item.level === "ok" ? "✓" : item.level === "bad" ? "✗" : "!"}</span> ${escapeHtml(item.text)}</li>`).join("");
-      const banner = schematicState.reason
-        ? `<p class="callout bad">${escapeHtml(schematicState.reason)}</p>`
-        : schematicState.note ? `<p class="callout warn">${escapeHtml(schematicState.note)}</p>` : "";
-      const checking = schematicState.checking ? `<p class="hint">正在检查是否为矢量 PDF、能否抽出文字、页数是否超限。</p>` : "";
-      card.innerHTML = `<div class="file-card-body">
-          <iframe class="thumb" title="原理图首页预览" src="${schematicState.url}#page=1&view=FitH"></iframe>
-          <div>
-            <span class="name">${escapeHtml(schematicState.file.name)}</span>
-            <p class="hint">${escapeHtml(formatBytes(schematicState.file.size))}${schematicState.pages ? ` · ${schematicState.pages} 页` : ""}</p>
-            ${checking}
-            <ul class="checks">${checks}</ul>
-            ${banner}
-            <p class="file-actions">
-              <button type="button" class="btn btn-secondary" id="schematicReselect">重新选择</button>
-              <button type="button" class="btn btn-text" id="schematicRemove">移除</button>
-            </p>
-          </div>
-        </div>`;
-      document.querySelector("#schematicReselect").addEventListener("click", pickSchematic);
-      document.querySelector("#schematicRemove").addEventListener("click", clearSchematic);
+      const rows = files.map((item, index) => {
+        const flag = item.checking ? "正在检查" : item.ok ? "可以生成" : "不能用于生成";
+        const checks = (item.checks || []).map((check) => `<li class="check ${check.level}"><span aria-hidden="true">${check.level === "ok" ? "✓" : check.level === "bad" ? "✗" : "!"}</span> ${escapeHtml(check.text)}</li>`).join("");
+        return `<li class="file-row"><div>
+            <span class="name">${escapeHtml(item.file.name)}</span>
+            <p class="hint">${escapeHtml(formatBytes(item.file.size))}${item.pages ? ` · ${item.pages} 页` : ""} · ${escapeHtml(flag)}</p>
+            ${checks ? `<ul class="checks">${checks}</ul>` : ""}
+            ${item.reason ? `<p class="callout bad">${escapeHtml(item.reason)}</p>` : ""}
+            ${item.note ? `<p class="callout warn">${escapeHtml(item.note)}</p>` : ""}
+          </div><button type="button" class="btn btn-text" data-remove-pdf="${index}">移除</button></li>`;
+      }).join("");
+      card.innerHTML = `<ul class="file-list">${rows}</ul><p class="file-actions"><button type="button" class="btn btn-text" id="schematicClear">清空全部</button></p>`;
+      card.querySelectorAll("[data-remove-pdf]").forEach((button) => {
+        button.addEventListener("click", () => removeSchematic(Number(button.dataset.removePdf)));
+      });
+      card.querySelector("#schematicClear").addEventListener("click", clearSchematic);
     }
     function pickSchematic() {
       const input = document.querySelector("#schematicFile");
@@ -1515,46 +1834,82 @@
       input.click();
     }
     function clearSchematic() {
-      if (schematicState.url) URL.revokeObjectURL(schematicState.url);
+      (schematicState.files || []).forEach((item) => { if (item.url) URL.revokeObjectURL(item.url); });
       schematicState = emptySchematic();
+      previewIndex = 0;
       renderSchematicFile();
       paintSchematicGate();
     }
-    async function useSchematicFile(file) {
-      if (!file) return;
-      if (schematicState.url) URL.revokeObjectURL(schematicState.url);
-      schematicState = Object.assign(emptySchematic(), { file, url: URL.createObjectURL(file), checking: true });
+    function removeSchematic(index) {
+      const item = schematicState.files[index];
+      if (!item) return;
+      if (item.url) URL.revokeObjectURL(item.url);
+      schematicState.files.splice(index, 1);
+      if (previewIndex >= schematicState.files.length) previewIndex = 0;
+      refreshSchematicSummary();
       renderSchematicFile();
       paintSchematicGate();
+    }
+    async function addSchematicFiles(fileList) {
+      const incoming = [...fileList];
+      if (!incoming.length) return;
+      let skipped = 0;
+      for (const file of incoming) {
+        if (schematicState.files.length >= LIMITS.maxFiles) {
+          toast(`原理图一次最多 ${LIMITS.maxFiles} 份。多出来的没有加入。`);
+          break;
+        }
+        if (schematicState.files.some((item) => item.file.name === file.name && item.file.size === file.size)) {
+          skipped += 1;
+          continue;
+        }
+        const entry = { file, url: URL.createObjectURL(file), checking: true, ok: false, reason: "", note: "", checks: [], pages: null, keywords: [] };
+        schematicState.files.push(entry);
+        refreshSchematicSummary();
+        renderSchematicFile();
+        paintSchematicGate();
+        try {
+          const inspected = await inspectPdf(file);
+          entry.checking = false;
+          entry.ok = inspected.ok;
+          entry.reason = inspected.reason || "";
+          entry.note = inspected.note || "";
+          entry.checks = inspected.checks || [];
+          entry.pages = inspected.pages;
+          entry.keywords = inspected.keywords || [];
+        } catch (error) {
+          entry.checking = false;
+          entry.ok = false;
+          entry.reason = "这份 PDF 没能在本地打开。请重新导出矢量 PDF 后再上传。";
+        }
+      }
+      if (skipped) toast(`有 ${skipped} 份和已选文件相同，没有重复加入。`);
+      refreshSchematicSummary();
       try {
-        const inspected = await inspectPdf(file);
-        const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
-        schematicState.checking = false;
-        schematicState.ok = inspected.ok;
-        schematicState.reason = inspected.reason || "";
-        schematicState.note = inspected.note || "";
-        schematicState.checks = inspected.checks || [];
-        schematicState.pages = inspected.pages;
-        schematicState.keywords = inspected.keywords || [];
-        schematicState.sha8 = hex(digest).slice(0, 8);
+        const parts = [];
+        for (const item of schematicState.files) {
+          const digest = await crypto.subtle.digest("SHA-256", await item.file.arrayBuffer());
+          parts.push(hex(digest));
+        }
+        if (parts.length === 1) schematicState.sha8 = parts[0].slice(0, 8);
+        else if (parts.length) {
+          const all = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(parts.join("\n")));
+          schematicState.sha8 = hex(all).slice(0, 8);
+        } else schematicState.sha8 = "";
       } catch (error) {
-        schematicState.checking = false;
-        schematicState.ok = false;
-        schematicState.reason = "这份 PDF 没能在本地打开。请重新导出矢量 PDF 后再上传。";
+        schematicState.sha8 = "";
       }
       renderSchematicFile();
       paintSchematicGate();
     }
     function generateBlockers() {
       const reasons = [];
-      if (!schematicState.file) reasons.push("请上传原理图 PDF");
-      else if (schematicState.checking) reasons.push("正在检查这份 PDF");
-      else if (!schematicState.ok) reasons.push(schematicState.reason || "这份 PDF 还不能用于生成");
+      if (!(schematicState.files || []).length) reasons.push("请上传原理图 PDF");
+      else if (schematicState.checking) reasons.push("正在检查这些 PDF");
+      else if (!schematicState.ok) reasons.push(schematicState.reason || "有原理图还不能用于生成");
       ["product", "datasheet"].forEach((role) => {
-        const state = materialState(role);
-        if (state.ok) return;
-        const name = role === "product" ? "产品定义" : "Datasheet";
-        reasons.push(state.label === "超长" ? `${name}超过字数上限，请先删减` : `${name}还没就绪`);
+        if (materialState(role).label !== "超长") return;
+        reasons.push(`${role === "product" ? "产品定义" : "Datasheet"}超过字数上限，请先删减`);
       });
       return reasons;
     }
@@ -1564,18 +1919,49 @@
       const block = document.querySelector("#schematicBlock");
       const running = Boolean(reviewAbort);
       if (!running) button.disabled = reasons.length > 0;
-      block.textContent = running ? "" : reasons.join("；");
+      const shown = running ? [] : reasons.filter((reason) => reason !== "请上传原理图 PDF");
+      block.hidden = shown.length === 0;
+      block.textContent = shown.join("；");
     }
     function paintStages(step) {
       document.querySelectorAll("#schematicStages li").forEach((li, index) => {
         li.dataset.state = index < step ? "done" : index === step ? "now" : "todo";
       });
     }
+    function formatWait(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return m > 0 ? `${m} 分 ${String(s).padStart(2, "0")} 秒` : `${s} 秒`;
+    }
+    function showReviewWait(label, elapsed) {
+      const root = document.querySelector("#schematicResult");
+      if (!root.querySelector("#reviewWait")) {
+        root.innerHTML = `<div class="empty is-wait" id="reviewWait" role="status">
+          <span class="spinner" aria-hidden="true"></span>
+          <p id="reviewWaitTitle" aria-live="polite"></p>
+          <p class="hint" id="reviewWaitDetail"></p>
+        </div>`;
+      }
+      const title = document.querySelector("#reviewWaitTitle");
+      const nextTitle = `正在${label}`;
+      if (title.textContent !== nextTitle) title.textContent = nextTitle;
+      document.querySelector("#reviewWaitDetail").textContent = `已等待 ${formatWait(elapsed)}。这一步还没结束，完成后问题会列在这里，也可以点取消。`;
+    }
+    function setReviewBusy(on, label) {
+      const button = document.querySelector("#schematicBtn");
+      const form = document.querySelector("#schematicForm");
+      button.classList.toggle("is-busy", on);
+      button.setAttribute("aria-busy", on ? "true" : "false");
+      form.setAttribute("aria-busy", on ? "true" : "false");
+      document.querySelector("#schematicSpinner").hidden = !on;
+      if (!on) document.querySelector("#schematicBtnLabel").textContent = "生成审查草稿";
+      else if (label) document.querySelector("#schematicBtnLabel").textContent = `${label}…`;
+    }
     async function snapshotFrom(data, productText, datasheetText) {
       return {
         id: String(Date.now()),
         at: Date.now(),
-        filename: data.filename || (schematicState.file ? schematicState.file.name : ""),
+        filename: data.filename || (schematicState.files || []).map((item) => item.file.name).join("、"),
         disclaimer: data.disclaimer || "",
         result_hash: data.result_hash || "",
         items: data.items || [],
@@ -1585,6 +1971,10 @@
         identified_modules: data.identified_modules || [],
         active_components: data.active_components || [],
         rule_tags: data.rule_tags || [],
+        basis_note: data.basis_note || "",
+        coverage_note: data.coverage_note || "",
+        discovery_note: data.discovery_note || "",
+        pending_rules: data.pending_rules || [],
         pdfSha8: schematicState.sha8,
         productSha8: (await sha256Text(productText)).slice(0, 8),
         datasheetSha8: (await sha256Text(datasheetText)).slice(0, 8),
@@ -1612,16 +2002,26 @@
       list[index] = currentResult;
       try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(list)); } catch (error) {}
     }
+    function removeHistory(id) {
+      const list = loadHistory();
+      if (!list.some((item) => item.id === id)) return;
+      try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(list.filter((item) => item.id !== id))); }
+      catch (error) { toast("没有从最近审查里移除。"); return; }
+      if (currentResult && currentResult.id === id) {
+        currentResult = null;
+        showAwaiting();
+      }
+      paintHistory();
+      toast("已从最近审查移除。");
+    }
     function awaitingHtml() {
       return `<div class="empty" id="resultEmpty">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"></path><path d="M14 3v6h6M8 13h8M8 17h5"></path></svg>
-        <p>生成草稿后，问题会列在这里。</p>
-        <button type="button" class="btn btn-primary" id="emptyPick">选择原理图 PDF</button>
+        <p>生成草稿后，问题会列在这里。原理图请拖到上方区域，或点击该区域选择、粘贴。</p>
       </div>`;
     }
     function showAwaiting() {
       document.querySelector("#schematicResult").innerHTML = awaitingHtml();
-      document.querySelector("#emptyPick")?.addEventListener("click", pickSchematic);
     }
     function numericPair(item) {
       const traces = Array.isArray(item.trace) ? item.trace : [];
@@ -1653,7 +2053,262 @@
       if (tags.length) bits.push(`规则 ${tags.join("、")}`);
       const line = bits.length ? `<p class="hint">规划：${escapeHtml(bits.join(" · "))}</p>` : "";
       const note = snapshot.plan_note ? `<p class="callout warn">${escapeHtml(snapshot.plan_note)}</p>` : "";
-      return line + note;
+      const sheet = mpnsFromComponents(components).length ? `<div id="sheetRow" class="sheet-row"></div>` : "";
+      return line + note + sheet;
+    }
+    function mpnsFromComponents(list) {
+      const found = [];
+      (list || []).forEach((item) => {
+        const matched = String(item).match(/[（(]([^)）]+)[)）]/);
+        const mpn = matched ? matched[1].trim() : "";
+        if (!mpn || found.includes(mpn) || found.length >= LIMITS.maxFiles) return;
+        found.push(mpn);
+      });
+      return found;
+    }
+    function paintSheetRow(items) {
+      const row = document.querySelector("#sheetRow");
+      if (!row) return;
+      row.innerHTML = (items || []).map((item) => {
+        const level = item.level === "ok" ? "ok" : item.level === "warn" ? "warn" : item.level === "pending" ? "todo" : "bad";
+        return `<button type="button" class="sheet-chip badge ${level}" data-mpn="${escapeHtml(item.mpn)}">${escapeHtml(item.mpn)} · ${escapeHtml(item.label || "正在查找手册")}</button>`;
+      }).join("");
+      row.querySelectorAll("button").forEach((button) => {
+        button.addEventListener("click", () => openSheet(button.dataset.mpn));
+      });
+    }
+    function localSheetHit(mpn) {
+      return {
+        mpn,
+        level: "ok",
+        label: "已在本次上传的手册里",
+        note: "资料页已经有这份手册，不再联网查找。"
+      };
+    }
+    async function queueDatasheetLookup(snapshot) {
+      const mpns = mpnsFromComponents(snapshot.active_components);
+      if (!mpns.length) return;
+      const token = ++sheetLookupToken;
+      const known = [];
+      const missing = [];
+      mpns.forEach((mpn) => {
+        if (excerptHasMpn(mpn)) known.push(localSheetHit(mpn));
+        else missing.push(mpn);
+      });
+      paintSheetRow(mpns.map((mpn) => known.find((item) => item.mpn === mpn) || { mpn, level: "pending", label: "先查本地，没有再联网" }));
+      let fetched = [];
+      if (missing.length) {
+        try {
+          const response = await fetch("/api/schematic/datasheets/resolve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mpns: missing })
+          });
+          const data = await response.json().catch(() => ({}));
+          if (token !== sheetLookupToken || currentResult !== snapshot) return;
+          if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "");
+          fetched = markUploadedSheets(data.items || []);
+        } catch (error) {
+          if (token !== sheetLookupToken || currentResult !== snapshot) return;
+          fetched = missing.map((mpn) => ({ mpn, level: "bad", label: "抓取失败，请手动补充 PDF", note: "手册查找没有完成" }));
+        }
+      }
+      if (token !== sheetLookupToken || currentResult !== snapshot) return;
+      const byMpn = new Map(known.map((item) => [item.mpn, item]));
+      fetched.forEach((item) => byMpn.set(item.mpn, item));
+      snapshot.datasheets = mpns.map((mpn) => byMpn.get(mpn)).filter(Boolean);
+      paintSheetRow(snapshot.datasheets);
+      saveReviewToHistory();
+      autoLoadExcerpts(snapshot);
+    }
+    function excerptHasMpn(mpn) {
+      const text = uploadedSheetText();
+      if (!text) return false;
+      return mpnNeedles(mpn).some((token) => text.includes(token));
+    }
+    const excerptLoads = new Set();
+    async function autoLoadExcerpts(snapshot) {
+      const items = (snapshot?.datasheets || []).filter((item) => item.sha256 && !excerptHasMpn(item.mpn) && !excerptLoads.has(item.mpn));
+      if (!items.length) return;
+      items.forEach((item) => excerptLoads.add(item.mpn));
+      let added = 0;
+      try {
+        for (const item of items) {
+          if (excerptHasMpn(item.mpn)) continue;
+          if (await loadSheetExcerpt(item, { quiet: true })) {
+            added += 1;
+            item.level = "ok";
+            item.label = "已载入摘录";
+            item.note = "已写入 Datasheet 摘录。再生成一次审查就会用到。";
+          }
+        }
+      } finally {
+        items.forEach((item) => excerptLoads.delete(item.mpn));
+      }
+      if (currentResult === snapshot) {
+        paintSheetRow(snapshot.datasheets);
+        saveReviewToHistory();
+      }
+      if (added) toast(`已自动载入 ${added} 份手册。再生成一次审查就会用到。`);
+    }
+    function uploadedSheetText() {
+      return excerptValue("datasheet").toLowerCase().replace(/[^a-z0-9]/g, "");
+    }
+    function mpnNeedles(mpn) {
+      const found = [];
+      const add = (token) => {
+        if (token && token.length >= 4 && !found.includes(token)) found.push(token);
+      };
+      add(String(mpn || "").toLowerCase().replace(/[^a-z0-9]/g, ""));
+      (String(mpn || "").toLowerCase().match(/[a-z0-9]{4,}/g) || []).forEach((token) => {
+        if (!/[a-z]/.test(token) || !/\d/.test(token)) return;
+        add(token);
+        const st = token.match(/^(stm32[a-z]\d{3}[a-z]{2})/);
+        if (st) {
+          add(st[1]);
+          add(st[1].slice(0, -2));
+        }
+        const stem = token.replace(/[a-z]+$/, "");
+        if (stem.length >= 6 && /[a-z]/.test(stem) && /\d/.test(stem)) add(stem);
+      });
+      return found;
+    }
+    function markUploadedSheets(items) {
+      const text = uploadedSheetText();
+      if (!text) return items || [];
+      return (items || []).map((item) => {
+        if (item.level === "ok" || item.level === "warn") return item;
+        if (!mpnNeedles(item.mpn).some((token) => text.includes(token))) return item;
+        return Object.assign({}, item, {
+          level: "ok",
+          label: "已在本次上传的手册里",
+          note: "资料页已经有这份手册，本次审查用的是上传文本。这不是联网抓取失败。"
+        });
+      });
+    }
+    function sheetByMpn(mpn) {
+      return (currentResult?.datasheets || []).find((item) => item.mpn === mpn) || null;
+    }
+    function fillSheetDialog(item) {
+      document.querySelector("#sheetTitle").textContent = item?.mpn || "手册";
+      document.querySelector("#sheetNote").textContent = item?.note || "可以预览首页，也可以换成自己的 PDF。";
+      const frame = document.querySelector("#sheetFrame");
+      const sha = item?.sha256 || "";
+      if (/^[a-f0-9]{64}$/.test(sha)) {
+        frame.hidden = false;
+        frame.src = `/api/schematic/datasheets/file/${sha}#page=1`;
+      } else {
+        frame.hidden = true;
+        frame.removeAttribute("src");
+      }
+      document.querySelector("#sheetPreview").textContent = item?.preview_text || "";
+      document.querySelector("#sheetLoad").disabled = !/^[a-f0-9]{64}$/.test(sha);
+    }
+    function openSheet(mpn) {
+      const item = sheetByMpn(mpn) || { mpn, level: "pending", label: "正在查找手册", note: "正在查找这份手册。" };
+      if (item.level === "pending") { toast("正在查找这份手册。"); return; }
+      sheetTarget = mpn;
+      fillSheetDialog(item);
+      document.querySelector("#sheetDialog").showModal();
+    }
+    function replaceSheet(item) {
+      if (!currentResult || !item) return;
+      const list = currentResult.datasheets || [];
+      const index = list.findIndex((row) => row.mpn === item.mpn);
+      if (index >= 0) list[index] = item;
+      else list.push(item);
+      currentResult.datasheets = list;
+      paintSheetRow(list);
+      saveReviewToHistory();
+      if (sheetTarget === item.mpn) fillSheetDialog(item);
+    }
+    async function reloadSheet(mpn) {
+      const button = document.querySelector("#sheetReload");
+      button.disabled = true;
+      try {
+        const response = await fetch("/api/schematic/datasheets/resolve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mpns: [mpn], refresh: true })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "重新搜索没有完成");
+        const item = (data.items || [])[0];
+        if (item) {
+          replaceSheet(markUploadedSheets([item])[0]);
+          if (currentResult) autoLoadExcerpts(currentResult);
+        }
+      } catch (error) {
+        toast(error.message || "重新搜索没有完成");
+      } finally {
+        button.disabled = false;
+      }
+    }
+    async function loadSheetExcerpt(item, options) {
+      if (!item?.sha256) return false;
+      const quiet = Boolean(options && options.quiet);
+      const response = await fetch(`/api/schematic/datasheets/text/${item.sha256}`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (!quiet) toast(typeof data.detail === "string" ? data.detail : "没有抽出正文");
+        return false;
+      }
+      const current = excerptValue("datasheet").trim();
+      const mark = `【${item.mpn}】`;
+      if (current.includes(mark) || excerptHasMpn(item.mpn)) {
+        if (!quiet) toast("摘录里已经有这个料号。");
+        return false;
+      }
+      setExcerpt("datasheet", current ? `${current}\n\n${mark}\n${data.text}` : `${mark}\n${data.text}`, true);
+      if (!quiet) toast("已载入摘录。可以再生成一次审查。");
+      return true;
+    }
+    async function uploadSheetFile(file) {
+      if (!file || !sheetTarget) return;
+      const body = new FormData();
+      body.set("mpn", sheetTarget);
+      body.set("file", file, file.name);
+      try {
+        const response = await fetch("/api/schematic/datasheets/upload", { method: "POST", body });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "没有保存这份 PDF");
+        replaceSheet(data);
+        toast("已保存这份手册。可以预览，或载入摘录后再审一次。");
+      } catch (error) {
+        toast(error.message || "没有保存这份 PDF");
+      }
+    }
+    function pendingRulesHtml(snapshot) {
+      const rules = snapshot.pending_rules || [];
+      const note = snapshot.discovery_note || "";
+      if (!rules.length && !note) return "";
+      const cards = rules.map((rule) => {
+        const label = (RULE_TAGS.find(([id]) => id === rule.suggested_tag) || [rule.suggested_tag, rule.suggested_tag])[1];
+        return `<article class="rule-card">
+          <p class="hint">已写入${escapeHtml(label)}。本次检查单未引用。</p>
+          <p>${escapeHtml(rule.text || "")}</p>
+          <p class="hint">触发：${escapeHtml(rule.trigger_context || "图纸上的电路")}</p>
+          ${rule.rationale ? `<p class="hint">${escapeHtml(rule.rationale)}</p>` : ""}
+        </article>`;
+      }).join("");
+      return `<section class="card">
+        <h2>新写入的规则</h2>
+        <p class="hint">这些句子已经进入规则库，不需要再确认。本次检查单没有引用它们，下次审查才会用到。</p>
+        ${note ? `<p class="hint">${escapeHtml(note)}</p>` : ""}
+        ${cards}
+      </section>`;
+    }
+    function evidenceSummary(item) {
+      const rows = item.evidence || [];
+      if (!rows.length) return item.requirement_source || "没有证据";
+      const names = { datasheet: "手册", design_requirement: "产品要求", general_rule: "通用规则", derived_calculation: "派生计算", ai_inference: "模型推断" };
+      return rows.map((row) => `${names[row.source_type] || row.source_type}${row.verification_status === "verified" ? "" : "（未核实）"}`).join("、");
+    }
+    function calculationHtml(item) {
+      const calc = item.calculation;
+      if (!calc) return "";
+      const value = calc.calculated_value == null ? "没有已核实结果" : `${calc.calculated_value} ${calc.calculated_unit || ""}`.trim();
+      return `<dl class="evidence"><div><dt>计算</dt><dd>${escapeHtml(calc.formula || "未重算")} = ${escapeHtml(value)}。${escapeHtml(calc.assumptions || "")}</dd></div></dl>`;
     }
     function renderResult(snapshot) {
       currentResult = snapshot;
@@ -1677,12 +2332,14 @@
             <strong class="mono">${escapeHtml(item.target_refdes || "未标位号")}</strong>
             <span>${escapeHtml(rule)}</span>
             <span class="hint">${escapeHtml(item.conclusion || "")}</span>
+            ${item.admission === "needs_evidence" ? `<span class="badge warn">待核实</span>` : ""}
           </header>
           <dl class="evidence">
             <div><dt>图上值</dt><dd>${observed}</dd></div>
             <div><dt>资料值</dt><dd>${required}</dd></div>
-            <div><dt>来源页码</dt><dd>${escapeHtml(item.requirement_source || "没有来源")}</dd></div>
+            <div><dt>依据类型</dt><dd>${escapeHtml(evidenceSummary(item))}</dd></div>
           </dl>
+          ${calculationHtml(item)}
           ${pair && item.findings ? `<p>${escapeHtml(item.findings)}</p>` : ""}
           ${item.reason ? `<p class="hint">${escapeHtml(item.reason)}</p>` : ""}
           <div class="ops">
@@ -1692,20 +2349,28 @@
           </div>
         </article>`;
       }).join("");
-      const rejected = (snapshot.rejected || []).map((item) => `<li>${escapeHtml(item.target_refdes || "未标位号")}：${escapeHtml(item.reason || "未进入清单")}</li>`).join("");
-      const preview = schematicState.url
-        ? `<div class="preview-frame zoom-${previewZoom}" id="previewFrame"><iframe id="pdfFrame" data-base="${schematicState.url}" title="原理图预览" src="${schematicState.url}#page=1&view=FitH"></iframe></div>`
+      const rejected = (snapshot.rejected || []).map((item) => `<li>${escapeHtml(item.target_refdes || "未标位号")}：${escapeHtml(item.reason || "证据不足")}</li>`).join("");
+      const shown = previewEntry();
+      const previewFiles = schematicState.files || [];
+      const previewPicker = previewFiles.length > 1
+        ? `<label class="hint">图纸 <select id="previewPickFile">${previewFiles.map((item, index) => `<option value="${index}"${index === previewIndex ? " selected" : ""}>${escapeHtml(item.file.name)}</option>`).join("")}</select></label>`
+        : "";
+      const preview = shown
+        ? `<div class="preview-frame zoom-${previewZoom}" id="previewFrame"><iframe id="pdfFrame" data-base="${shown.url}" title="原理图预览" src="${shown.url}#page=1&view=FitH"></iframe></div>`
         : `<div class="empty"><p>这份记录没有留着 PDF，问题列表仍可查看。</p><button type="button" class="btn btn-primary" id="previewPick">重新选择 PDF</button></div>`;
       const hash = snapshot.result_hash ? snapshot.result_hash.slice(0, 8) : "—";
       document.querySelector("#schematicResult").innerHTML = `
         <section class="card result-card">
           <div class="page-head">
             <span class="badge warn">草稿 · 需人工复核</span>
-            <button type="button" class="btn btn-primary" id="exportBtn">导出草稿</button>
+            <button type="button" class="btn btn-primary" id="exportBtn">导出报告</button>
+            <button type="button" class="btn btn-secondary" id="exportJsonBtn">导出 JSON</button>
           </div>
           <p id="exportReason" class="hint"></p>
           <p class="hint fp">输入指纹：PDF ${escapeHtml(snapshot.pdfSha8 || "—")} · 产品定义 ${escapeHtml(snapshot.productSha8 || "—")} · Datasheet ${escapeHtml(snapshot.datasheetSha8 || "—")} · 结果 ${escapeHtml(hash)}。数值比对来自规则引擎；其余结论来自模型。同一份输入的数值比对结果相同。</p>
           ${planSummary(snapshot)}
+          ${snapshot.basis_note ? `<p class="callout warn">${escapeHtml(snapshot.basis_note)}</p>` : ""}
+          ${snapshot.coverage_note ? `<p class="callout warn">${escapeHtml(snapshot.coverage_note)}</p>` : ""}
           ${snapshot.reason ? `<p class="callout warn">${escapeHtml(snapshot.reason)}</p>` : ""}
           <div class="split-view">
             <div class="preview">
@@ -1713,6 +2378,7 @@
                 <button type="button" class="btn btn-secondary" id="zoomOut">缩小</button>
                 <button type="button" class="btn btn-secondary" id="zoomIn">放大</button>
                 <button type="button" class="btn btn-text" id="zoomReset">复位</button>
+                ${previewPicker}
                 <span id="previewLocate" class="hint"></span>
               </div>
               ${preview}
@@ -1725,16 +2391,22 @@
               </div>
               <div id="issueList">${cards || ""}</div>
               <div class="empty" id="issueEmpty" ${items.length ? "hidden" : ""}>
-                <p>${items.length ? "没有符合筛选的问题。" : "这次没有可展示的草稿。请核对摘录是否覆盖图上器件，然后重新生成。"}</p>
+                <p>${items.length ? "没有符合筛选的问题。" : (snapshot.reason ? "这次没有生成检查项。请看上面的说明后重新生成。" : "这次没有可展示的草稿。请核对摘录是否覆盖图上器件，然后重新生成。")}</p>
                 <button type="button" class="btn btn-secondary" id="clearFilter">${items.length ? "清空筛选" : "回到上传"}</button>
               </div>
             </div>
           </div>
-          ${rejected ? `<h2>未进入清单</h2><ul>${rejected}</ul><p class="hint">这些项没有进入草稿。请人工核对依据原文是否被改写。</p>` : ""}
-        </section>`;
+          ${rejected ? `<h2>证据未通过的原因</h2><ul>${rejected}</ul><p class="hint">这些条目仍留在上面，标成待核实。不能把它们当成手册审查已经完成，也不能当成已经排除。</p>` : ""}
+        </section>
+        ${pendingRulesHtml(snapshot)}`;
       bindResult();
       paintExport();
       paintSteps();
+      if ((snapshot.datasheets || []).length) {
+        snapshot.datasheets = markUploadedSheets(snapshot.datasheets);
+        paintSheetRow(snapshot.datasheets);
+        autoLoadExcerpts(snapshot);
+      } else queueDatasheetLookup(snapshot);
     }
     function pendingCount() {
       return (currentResult.items || []).filter((_, index) => {
@@ -1747,10 +2419,19 @@
       const reason = document.querySelector("#exportReason");
       if (!button) return;
       const total = (currentResult.items || []).length;
-      if (!total) { button.disabled = true; reason.textContent = "没有可导出的问题。"; return; }
+      const jsonButton = document.querySelector("#exportJsonBtn");
+      if (!total) {
+        button.disabled = true;
+        if (jsonButton) jsonButton.disabled = true;
+        reason.textContent = "没有可导出的问题。";
+        return;
+      }
+      button.disabled = false;
+      if (jsonButton) jsonButton.disabled = false;
       const pending = pendingCount();
-      button.disabled = pending > 0;
-      reason.textContent = pending ? `还有 ${pending} 条未复核或忽略。全部处理完才能导出。` : "已全部处理，可以导出。";
+      reason.textContent = pending
+        ? `还有 ${pending} 条未复核或忽略。可以先导出草稿，这些条目会标成未复核。`
+        : "已全部处理，可以导出报告。";
     }
     function applyIssueFilter() {
       const sev = document.querySelector("#filterSev").value;
@@ -1788,6 +2469,15 @@
     function bindResult() {
       const root = document.querySelector("#schematicResult");
       root.querySelector("#previewPick")?.addEventListener("click", pickSchematic);
+      root.querySelector("#previewPickFile")?.addEventListener("change", (event) => {
+        previewIndex = Number(event.target.value) || 0;
+        const entry = previewEntry();
+        const frame = document.querySelector("#pdfFrame");
+        if (frame && entry) {
+          frame.dataset.base = entry.url;
+          frame.src = `${entry.url}#page=1&view=FitH`;
+        }
+      });
       const zoomLevels = ["80", "100", "125", "150"];
       const stepZoom = (dir) => {
         const index = Math.max(0, zoomLevels.indexOf(previewZoom));
@@ -1796,7 +2486,8 @@
       root.querySelector("#zoomOut")?.addEventListener("click", () => stepZoom(-1));
       root.querySelector("#zoomIn")?.addEventListener("click", () => stepZoom(1));
       root.querySelector("#zoomReset")?.addEventListener("click", () => setZoom("100"));
-      root.querySelector("#exportBtn")?.addEventListener("click", exportDraft);
+      root.querySelector("#exportBtn")?.addEventListener("click", exportReport);
+      root.querySelector("#exportJsonBtn")?.addEventListener("click", exportDraft);
       root.querySelector("#filterSev")?.addEventListener("change", applyIssueFilter);
       root.querySelector("#filterRef")?.addEventListener("input", applyIssueFilter);
       root.querySelector("#filterRev")?.addEventListener("change", applyIssueFilter);
@@ -1847,10 +2538,118 @@
         });
       });
     }
-    function exportDraft() {
-      if (!currentResult || pendingCount()) return;
-      const payload = {
-        disclaimer: currentResult.disclaimer || "辅助预审，不构成设计签核。审查项为草稿，需人工复核。",
+    function exportStamp() {
+      const stamp = new Date(currentResult.at || Date.now());
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${stamp.getFullYear()}${pad(stamp.getMonth() + 1)}${pad(stamp.getDate())}-${pad(stamp.getHours())}${pad(stamp.getMinutes())}`;
+    }
+    function downloadText(filename, text, type) {
+      const blob = new Blob([text], { type });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1500);
+    }
+    function reviewWord(state) {
+      if (state === "reviewed") return "已复核";
+      if (state === "ignored") return "已忽略";
+      return "未复核";
+    }
+    function traceWord(result) {
+      if (result === "true") return "成立";
+      if (result === "false") return "不成立";
+      if (result === "unknown") return "无法完成";
+      return result || "";
+    }
+    function traceSentences(item) {
+      return (item.trace || []).map((row) => {
+        if (!row) return "";
+        if (row.left != null && row.right != null) {
+          const name = row.var ? `${row.var}：` : "";
+          return `${name}图上 ${formatTraceValue(row.left)}，依据 ${formatTraceValue(row.right)}，比较 ${row.op || ""}，结果 ${traceWord(row.result)}`;
+        }
+        if (row.note) return String(row.note);
+        if (row.op) return `${row.op}：${traceWord(row.result)}`;
+        return "";
+      }).filter(Boolean);
+    }
+    function reportHtml(payload) {
+      const items = payload.items || [];
+      const cards = items.map((item, index) => {
+        const state = item.review_state || "pending";
+        const comment = item.review_comment ? `<p>复核备注：${escapeHtml(item.review_comment)}</p>` : "";
+        const reason = item.reason ? `<p>说明：${escapeHtml(item.reason)}</p>` : "";
+        const traces = traceSentences(item);
+        const numbers = traces.length ? `<p>数值比较：${escapeHtml(traces.join("；"))}</p>` : "";
+        const method = item.method === "rule-engine" ? "规则引擎" : "模型";
+        const dual = item.dual_review ? `，${escapeHtml(item.dual_review)}` : "";
+        return `<article>
+          <h2>${escapeHtml(item.target_refdes || "未标位号")} · ${escapeHtml(item.conclusion || "")}</h2>
+          <p class="mark">需人工复核 · ${escapeHtml(reviewWord(state))}</p>
+          <p>类型：${escapeHtml(CHECK_LABEL[item.check_type] || item.check_type || "规则")} · 结论来源：${method}${dual}</p>
+          <p>图上情况：${escapeHtml(item.findings || "")}</p>
+          <p>依据类型：${escapeHtml(evidenceSummary(item))}</p>
+          <p>依据原文：${escapeHtml(item.quote || "")}</p>
+          ${item.calculation ? `<p>计算：${escapeHtml(item.calculation.formula || "未重算")}。${escapeHtml(item.calculation.assumptions || "")}</p>` : ""}
+          ${numbers}${reason}${comment}
+        </article>`;
+      }).join("");
+      const rejected = (payload.rejected || []).map((item) => `<li>${escapeHtml(item.target_refdes || "未标位号")}：${escapeHtml(item.reason || "未进入清单")}</li>`).join("");
+      const finger = payload.fingerprint || {};
+      const modules = (payload.identified_modules || []).join("、") || "未记录";
+      const components = (payload.active_components || []).join("、") || "未记录";
+      const pending = items.filter((item) => (item.review_state || "pending") === "pending").length;
+      const progress = pending
+        ? `检查项 ${items.length} 条，其中 ${pending} 条尚未复核或忽略。`
+        : `检查项 ${items.length} 条，均已复核或忽略。`;
+      return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>原理图审查报告 · ${escapeHtml(payload.filename || "")}</title>
+  <style>
+    body { margin: 32px auto; max-width: 820px; color: #1c1917; font: 16px/1.65 "Segoe UI", "Microsoft YaHei", sans-serif; }
+    h1 { font-size: 28px; line-height: 1.3; margin-bottom: 8px; }
+    h2 { font-size: 18px; margin: 0 0 6px; }
+    h2.section { margin: 28px 0 8px; }
+    article { border-top: 1px solid #e7e5e4; padding: 16px 0; }
+    .mark { color: #9a3412; font-weight: 650; }
+    .note { background: #fff7ed; border: 1px solid #fed7aa; padding: 12px 14px; }
+    .meta, footer { color: #57534e; font-size: 14px; }
+    @media print { body { margin: 0; } }
+  </style>
+</head>
+<body>
+  <p class="mark">草稿 · 需人工复核</p>
+  <h1>原理图审查报告</h1>
+  <p>图纸：${escapeHtml(payload.filename || "未命名原理图")}</p>
+  <p class="note">${escapeHtml(payload.disclaimer || "辅助预审，不构成设计签核。审查项为草稿，需人工复核。")}</p>
+  ${payload.coverage_note && !(payload.disclaimer || "").includes(payload.coverage_note) ? `<p class="note">${escapeHtml(payload.coverage_note)}</p>` : ""}
+  <p class="meta">${escapeHtml(progress)}</p>
+  <p>识别到的模块：${escapeHtml(modules)}</p>
+  <p>关键器件：${escapeHtml(components)}</p>
+  <h2 class="section">检查项</h2>
+  ${cards || "<p>这次没有进入清单的检查项。</p>"}
+  ${rejected ? `<h2 class="section">证据未通过的原因</h2><ul>${rejected}</ul><p class="meta">这些条目仍留在上面。缺少证据时不能当成已完成的手册审查。</p>` : ""}
+  <footer>
+    <p>输入指纹：PDF ${escapeHtml(finger.pdf_sha256_8 || "—")} · 产品定义 ${escapeHtml(finger.product_sha256_8 || "—")} · Datasheet ${escapeHtml(finger.datasheet_sha256_8 || "—")}</p>
+    <p>结果 ${escapeHtml(finger.result_hash || "—")}</p>
+    <p>数值比较来自规则引擎，其余结论来自模型。本报告是草稿，需人工复核，不构成设计签核。</p>
+  </footer>
+</body>
+</html>`;
+    }
+    function exportReport() {
+      if (!currentResult || !(currentResult.items || []).length) return;
+      downloadText(`原理图审查报告-${exportStamp()}.html`, reportHtml(draftPayload()), "text/html;charset=utf-8");
+    }
+    function draftPayload() {
+      return {
+        disclaimer: `${currentResult.disclaimer || "辅助预审，不构成设计签核。审查项为草稿，需人工复核。"}${currentResult.coverage_note && !(currentResult.disclaimer || "").includes(currentResult.coverage_note) ? currentResult.coverage_note : ""}`,
+        coverage_note: currentResult.coverage_note || "",
         draft: true,
         filename: currentResult.filename,
         fingerprint: {
@@ -1869,29 +2668,30 @@
         })),
         rejected: currentResult.rejected
       };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      const link = document.createElement("a");
-      const stamp = new Date(currentResult.at);
-      const pad = (n) => String(n).padStart(2, "0");
-      link.href = URL.createObjectURL(blob);
-      link.download = `原理图审查草稿-${stamp.getFullYear()}${pad(stamp.getMonth() + 1)}${pad(stamp.getDate())}-${pad(stamp.getHours())}${pad(stamp.getMinutes())}.json`;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(link.href), 1500);
+    }
+    function exportDraft() {
+      if (!currentResult || !(currentResult.items || []).length) return;
+      downloadText(`原理图审查草稿-${exportStamp()}.json`, JSON.stringify(draftPayload(), null, 2), "application/json");
     }
     function paintHistory() {
       const host = document.querySelector("#historyList");
       const list = loadHistory();
       if (!list.length) {
-        host.innerHTML = `<div class="empty"><p>还没有审查记录。生成一次草稿后会出现在这里。</p><button type="button" class="btn btn-secondary" id="historyPick">去上传原理图</button></div>`;
-        host.querySelector("#historyPick").addEventListener("click", () => document.querySelector("#schematicDrop")?.focus());
+        host.innerHTML = `<div class="empty"><p>还没有审查记录。生成一次草稿后会出现在这里。</p></div>`;
         return;
       }
-      host.innerHTML = list.map((item) => `<article class="card history"><button type="button" class="history-open" data-id="${escapeHtml(item.id)}">
-          <span class="name">${escapeHtml(item.filename || "原理图")}</span>
+      host.innerHTML = list.map((item) => {
+        const name = item.filename || "原理图";
+        return `<article class="card history"><button type="button" class="history-open" data-id="${escapeHtml(item.id)}">
+          <span class="name">${escapeHtml(name)}</span>
           <span class="hint">${formatClock(item.at)} · ${(item.items || []).length} 条 · PDF ${escapeHtml(item.pdfSha8 || "—")}</span>
-        </button></article>`).join("");
+        </button><button type="button" class="btn btn-text history-remove" data-remove-history="${escapeHtml(item.id)}" aria-label="移除 ${escapeHtml(name)}">移除</button></article>`;
+      }).join("");
       host.querySelectorAll("[data-id]").forEach((button) => {
         button.addEventListener("click", () => openHistory(button.dataset.id));
+      });
+      host.querySelectorAll("[data-remove-history]").forEach((button) => {
+        button.addEventListener("click", () => removeHistory(button.dataset.removeHistory));
       });
     }
     function openHistory(id) {
@@ -1919,7 +2719,7 @@
         cache: llmKept.cache,
         prompt_version: llmKept.prompt_version,
         outbound_allowed: document.querySelector("#llmOutbound").checked,
-        api_key: document.querySelector("#llmKey").value
+        api_key: typedApiKey()
       };
     }
     function fillLlm(data) {
@@ -1970,8 +2770,8 @@
         event.preventDefault();
         event.stopPropagation();
         zone.classList.remove("over");
-        const file = event.dataTransfer?.files?.[0];
-        if (file) take(file);
+        const files = event.dataTransfer?.files;
+        if (files?.length) take(files);
       });
     }
     function bindEditor(role) {
@@ -2034,8 +2834,6 @@
       document.querySelectorAll(".step").forEach((button) => {
         button.addEventListener("click", () => {
           const page = button.dataset.page;
-          if (page === "report") { toast("报告页还没有接到这个工作台。"); return; }
-          if (page === "basis") { toast("依据库还没有接到这个工作台。"); return; }
           if ((page === "schematic" && parseHash() === "schematic") || (page === "materials" && location.hash === "#materials")) {
             showPage(page, { focus: true });
             return;
@@ -2070,6 +2868,16 @@
         document.querySelector(sel).addEventListener("input", paintPrivacy);
         document.querySelector(sel).addEventListener("change", paintPrivacy);
       });
+      const keyInput = document.querySelector("#llmKey");
+      keyInput.addEventListener("input", paintKeyMask);
+      keyInput.addEventListener("focus", paintKeyMask);
+      keyInput.addEventListener("blur", paintKeyMask);
+      keyInput.addEventListener("copy", (event) => {
+        if (keyConfigured() && !keyInput.value) event.preventDefault();
+      });
+      keyInput.addEventListener("cut", (event) => {
+        if (keyConfigured() && !keyInput.value) event.preventDefault();
+      });
       document.querySelector("#llmProvider").addEventListener("change", () => {
         const previous = llmKept.provider;
         const next = currentProvider();
@@ -2079,15 +2887,15 @@
         llmKept.model = (llmPresets[next] && llmPresets[next].model) || "";
         syncProviderChrome();
       });
-      bindDrop(document.querySelector("#schematicDrop"), useSchematicFile, pickSchematic);
-      bindDrop(document.querySelector("#productDrop"), (file) => uploadMaterial("product", file), () => pickMaterial("product"));
-      bindDrop(document.querySelector("#datasheetDrop"), (file) => uploadMaterial("datasheet", file), () => pickMaterial("datasheet"));
-      document.querySelector("#productFile").addEventListener("change", (event) => { const file = event.target.files?.[0]; if (file) uploadMaterial("product", file); });
-      document.querySelector("#datasheetFile").addEventListener("change", (event) => { const file = event.target.files?.[0]; if (file) uploadMaterial("datasheet", file); });
-      document.querySelector("#schematicFile").addEventListener("change", (event) => { const file = event.target.files?.[0]; if (file) useSchematicFile(file); });
+      bindDrop(document.querySelector("#schematicDrop"), addSchematicFiles, pickSchematic);
+      bindDrop(document.querySelector("#productDrop"), (files) => addMaterialFiles("product", files), () => pickMaterial("product"));
+      bindDrop(document.querySelector("#datasheetDrop"), (files) => addMaterialFiles("datasheet", files), () => pickMaterial("datasheet"));
+      document.querySelector("#productFile").addEventListener("change", (event) => { if (event.target.files?.length) addMaterialFiles("product", event.target.files); });
+      document.querySelector("#datasheetFile").addEventListener("change", (event) => { if (event.target.files?.length) addMaterialFiles("datasheet", event.target.files); });
+      document.querySelector("#schematicFile").addEventListener("change", (event) => { if (event.target.files?.length) addSchematicFiles(event.target.files); });
       ["product", "datasheet"].forEach((role) => {
         document.querySelector(MATERIAL_BUTTON[role]).addEventListener("click", () => {
-          if (materials[role].file) uploadMaterial(role, materials[role].file);
+          if ((materials[role].entries || []).some((item) => item.file)) reextractMaterial(role);
           else pickMaterial(role);
         });
       });
@@ -2098,7 +2906,7 @@
       document.querySelector("#schematicForm").addEventListener("submit", async (event) => {
         event.preventDefault();
         const blockers = generateBlockers();
-        if (blockers.length || !schematicState.file) { paintSchematicGate(); return; }
+        if (blockers.length || !(schematicState.files || []).length) { paintSchematicGate(); return; }
         const button = document.querySelector("#schematicBtn");
         const cancel = document.querySelector("#schematicCancel");
         const status = document.querySelector("#schematicStatus");
@@ -2108,21 +2916,27 @@
         cancel.hidden = false;
         stages.hidden = false;
         showStatus(status, "", "");
-        status.textContent = "";
+        const started = Date.now();
         let step = 0;
-        paintStages(step);
-        button.textContent = `${STAGE_LABELS[0]}…`;
-        stageTimer = setInterval(() => {
-          if (step < STAGE_LABELS.length - 1) step += 1;
-          paintStages(step);
-          button.textContent = `${STAGE_LABELS[step]}…`;
-        }, 4000);
+        const paintWait = () => {
+          const elapsed = Math.floor((Date.now() - started) / 1000);
+          const next = Math.min(STAGE_LABELS.length - 1, Math.floor(elapsed / 4));
+          if (next !== step || elapsed === 0) {
+            step = next;
+            paintStages(step);
+            setReviewBusy(true, STAGE_LABELS[step]);
+            status.textContent = `正在${STAGE_LABELS[step]}，请稍候。`;
+          }
+          showReviewWait(STAGE_LABELS[step], elapsed);
+        };
+        paintWait();
+        stageTimer = setInterval(paintWait, 1000);
         reviewAbort = new AbortController();
         paintSchematicGate();
         const productText = sentText("product");
         const datasheetText = sentText("datasheet");
         const body = new FormData();
-        body.set("schematic", schematicState.file, schematicState.file.name);
+        schematicState.files.forEach((item) => body.append("schematic", item.file, item.file.name));
         body.set("product_spec_text", productText);
         body.set("datasheet_text", datasheetText);
         let failed = false;
@@ -2147,7 +2961,7 @@
         } finally {
           clearInterval(stageTimer);
           reviewAbort = null;
-          button.textContent = "生成审查草稿";
+          setReviewBusy(false);
           cancel.hidden = true;
           stages.hidden = true;
           paintSchematicGate();
@@ -2161,12 +2975,14 @@
       document.addEventListener("paste", (event) => {
         const tag = event.target?.tagName;
         if (tag === "TEXTAREA" || tag === "INPUT") return;
-        const file = event.clipboardData?.files?.[0];
-        if (!file) return;
+        const files = [...(event.clipboardData?.files || [])];
+        if (!files.length) return;
         event.preventDefault();
-        if (document.body.dataset.page === "schematic") { useSchematicFile(file); return; }
-        const name = file.name.toLowerCase();
-        uploadMaterial(name.endsWith(".pdf") ? "datasheet" : "product", file);
+        if (document.body.dataset.page === "schematic") { addSchematicFiles(files); return; }
+        const pdfs = files.filter((file) => file.name.toLowerCase().endsWith(".pdf"));
+        const docs = files.filter((file) => !file.name.toLowerCase().endsWith(".pdf"));
+        if (pdfs.length) addMaterialFiles("datasheet", pdfs);
+        if (docs.length) addMaterialFiles("product", docs);
       });
       window.addEventListener("dragover", (event) => {
         if ([...(event.dataTransfer?.types || [])].includes("Files")) event.preventDefault();
@@ -2227,6 +3043,227 @@
         }
       });
       setInterval(() => { fetch("/api/heartbeat", { method: "POST" }).catch(() => {}); }, 20000);
+      document.querySelector("#sheetClose").addEventListener("click", () => document.querySelector("#sheetDialog").close());
+      document.querySelector("#sheetReload").addEventListener("click", () => { if (sheetTarget) reloadSheet(sheetTarget); });
+      document.querySelector("#sheetLoad").addEventListener("click", () => loadSheetExcerpt(sheetByMpn(sheetTarget)));
+      document.querySelector("#sheetPick").addEventListener("click", () => document.querySelector("#sheetUpload").click());
+      document.querySelector("#sheetUpload").addEventListener("change", (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (file) uploadSheetFile(file);
+      });
+      document.querySelector("#knowledgeForm").addEventListener("submit", importKnowledge);
+      document.querySelector("#knowledgeList").addEventListener("click", (event) => {
+        const button = event.target.closest("[data-verify]");
+        if (button) verifyConstraint(button.dataset.verify);
+      });
+      document.querySelector("#netlistFile").addEventListener("change", async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        document.querySelector("#netlistJson").value = await file.text();
+      });
+      document.querySelector("#netlistForm").addEventListener("submit", reviewNetlist);
+    }
+
+    const CONSTRAINT_TYPE = {
+      hard_limit: "硬性限制",
+      recommended: "推荐",
+      conditional: "条件性要求",
+      reference: "参考",
+      intent: "设计意图"
+    };
+    const VERIFY_LABEL = { unverified: "未复核", verified: "已复核", ambiguous: "有歧义", obsolete: "已废弃" };
+    const EFFECTIVE_LABEL = { current: "当前有效", superseded: "已停用", applicability_unconfirmed: "适用性待确认" };
+    const PARSE_LABEL = { parsed: "已抽出条目", partial: "部分页面没有文字", not_parsed: "没有抽出文字", needs_review: "解析需要复核" };
+    const FINDING_STATUS = { confirmed: "已确认", probable: "可能", needs_review: "待核实", not_assessable: "无法判定", cleared: "已排除" };
+    const FINDING_SEV = { critical: "严重", high: "高", medium: "中", low: "低", info: "提示" };
+    const VERDICT_LABEL = { findings: "有发现", not_assessable: "无法判定", no_applicable_rules: "没有适用规则", clear: "没有确定问题" };
+
+    async function apiError(response) {
+      try {
+        const body = await response.json();
+        if (typeof body.detail === "string") return body.detail;
+      } catch (error) {}
+      return "请求没有完成";
+    }
+    function parameterLine(item) {
+      const param = (item.parameters || [])[0] || {};
+      const bits = [];
+      if (param.name) bits.push(param.name);
+      if (param.min_value != null) bits.push(`最小 ${param.min_value}${param.unit ? " " + param.unit : ""}`);
+      if (param.max_value != null) bits.push(`最大 ${param.max_value}${param.unit ? " " + param.unit : ""}`);
+      if (param.value != null) bits.push(`值 ${param.value}${param.unit ? " " + param.unit : ""}`);
+      if (param.value_text) bits.push(param.value_text);
+      return bits.join(" · ");
+    }
+    function scopeLine(item) {
+      const app = item.applicability || {};
+      return [app.mpn, app.refdes, app.pin ? `引脚 ${app.pin}` : "", app.pin_name, app.interface].filter(Boolean).join(" · ");
+    }
+    function paintKnowledge(data) {
+      const conflicts = data.conflicts || [];
+      document.querySelector("#knowledgeConflicts").innerHTML = conflicts.map((item) =>
+        `<p class="callout warn">${escapeHtml(item.reason || "约束冲突")} ${escapeHtml(item.detail || "")}</p>`
+      ).join("");
+      const docs = [...(data.documents || [])].sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
+      const grouped = {};
+      (data.constraints || []).forEach((item) => {
+        const key = item.source_document_id || "";
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(item);
+      });
+      const host = document.querySelector("#knowledgeList");
+      const items = data.constraints || [];
+      const pending = items.filter((item) => item.verification_status !== "verified").length;
+      if (items.length) {
+        document.querySelector("#knowledgeStatus").textContent = pending
+          ? `已有 ${items.length} 条约束，${pending} 条尚未复核。尚未复核的条目不能单独支撑确定结论。`
+          : `已有 ${items.length} 条约束，都已复核，可以参与确定结论。`;
+      }
+      if (!docs.length) {
+        host.innerHTML = `<div class="empty"><p>还没有设计约束。导入一份带摘录和页码的资料后，条目会列在这里。</p></div>`;
+        return;
+      }
+      host.innerHTML = docs.map((doc) => {
+        const rows = grouped[doc.document_id] || [];
+        const waiting = rows.filter((item) => item.verification_status !== "verified").length;
+        const cards = rows.map((item) => {
+          const canVerify = item.verification_status === "unverified" && item.effective_status === "current";
+          return `<article class="issue">
+            <header class="issue-head">
+              <span class="badge ${item.verification_status === "verified" ? "ok" : "warn"}">${escapeHtml(VERIFY_LABEL[item.verification_status] || item.verification_status)}</span>
+              <span class="badge">${escapeHtml(CONSTRAINT_TYPE[item.constraint_type] || item.constraint_type)}</span>
+              <span class="badge">${escapeHtml(EFFECTIVE_LABEL[item.effective_status] || item.effective_status)}</span>
+              <strong>${escapeHtml(item.title || item.constraint_id)}</strong>
+            </header>
+            <dl class="evidence">
+              <div><dt>参数</dt><dd>${escapeHtml(parameterLine(item) || "没有数值")}</dd></div>
+              <div><dt>适用</dt><dd>${escapeHtml(scopeLine(item) || "未限定器件")}</dd></div>
+              <div><dt>来源</dt><dd>${escapeHtml([doc.title, item.source_revision, item.source_page != null ? `第 ${item.source_page} 页` : "", item.source_section].filter(Boolean).join(" · "))}</dd></div>
+            </dl>
+            ${item.source_quote ? `<blockquote class="quote">${escapeHtml(item.source_quote)}</blockquote>` : ""}
+            ${canVerify ? `<div class="ops"><button type="button" class="btn btn-secondary" data-verify="${escapeHtml(item.constraint_id)}">复核通过</button></div>` : ""}
+          </article>`;
+        }).join("");
+        const stateNote = rows.length
+          ? (waiting ? `${waiting} 条尚未复核。` : "条目都已复核。")
+          : (doc.parse_note || "");
+        return `<section>
+          <h3>${escapeHtml(doc.title || "未命名资料")}</h3>
+          <p class="hint">${escapeHtml(PARSE_LABEL[doc.parse_status] || doc.parse_status)}${doc.revision ? ` · 修订 ${escapeHtml(doc.revision)}` : ""}${stateNote ? ` · ${escapeHtml(stateNote)}` : ""}</p>
+          ${doc.ocr_text ? `<blockquote class="quote">${escapeHtml(doc.ocr_text)}</blockquote><p class="hint">${escapeHtml(doc.ocr_note || "以上是图中文字，已经写入资料正文。复核通过后可以参与确定结论。")}</p>` : ""}
+          ${cards || `<p class="hint">这份资料没有保存约束条目。</p>`}
+        </section>`;
+      }).join("");
+    }
+    async function loadKnowledge() {
+      const response = await fetch("/api/schematic/knowledge/constraints");
+      if (!response.ok) {
+        toast(await apiError(response));
+        return;
+      }
+      paintKnowledge(await response.json());
+    }
+    async function importKnowledge(event) {
+      event.preventDefault();
+      const button = document.querySelector("#knowledgeImport");
+      const status = document.querySelector("#knowledgeStatus");
+      button.disabled = true;
+      status.textContent = "正在导入。";
+      const form = new FormData();
+      form.append("title", document.querySelector("#knowledgeTitleInput").value.trim());
+      form.append("kind", document.querySelector("#knowledgeKind").value);
+      form.append("revision", document.querySelector("#knowledgeRevision").value.trim());
+      const file = document.querySelector("#knowledgeFile").files[0];
+      if (file) form.append("file", file);
+      else form.append("text", document.querySelector("#knowledgeText").value);
+      try {
+        const response = await fetch("/api/schematic/knowledge/import", { method: "POST", body: form });
+        if (!response.ok) throw new Error(await apiError(response));
+        const body = await response.json();
+        const count = (body.constraints || []).length;
+        const ocr = body.document?.ocr_note || "";
+        const importedNote = count
+          ? `已导入 ${count} 条，状态是未复核。复核后才会用于确定结论。`
+          : (body.document?.parse_note || "没有保存约束条目。");
+        status.textContent = [importedNote, ocr].filter(Boolean).join(" ");
+        document.querySelector("#knowledgeFile").value = "";
+        await loadKnowledge();
+      } catch (error) {
+        status.textContent = error.message || "没有导入";
+        toast(error.message || "没有导入");
+      } finally {
+        button.disabled = false;
+      }
+    }
+    async function verifyConstraint(constraintId) {
+      const response = await fetch(`/api/schematic/knowledge/constraints/${encodeURIComponent(constraintId)}/verify`, { method: "POST" });
+      if (!response.ok) {
+        toast(await apiError(response));
+        return;
+      }
+      toast("这条约束已复核，可以参与确定结论。");
+      await loadKnowledge();
+    }
+    function paintKnowledgeReport(report) {
+      const findings = report.findings || [];
+      const cards = findings.map((item) => {
+        const evidence = (item.constraint_evidence || []).map((row) => `<blockquote class="quote">${escapeHtml(row.document_title || "资料")}${row.document_revision ? ` · ${escapeHtml(row.document_revision)}` : ""}${row.source_page != null ? ` · 第 ${escapeHtml(row.source_page)} 页` : ""}${row.source_section ? ` · ${escapeHtml(row.source_section)}` : ""}<br>${escapeHtml(row.source_quote || "")}</blockquote>`).join("");
+        const calc = item.calculation;
+        const calcHtml = calc ? `<dl class="evidence"><div><dt>计算</dt><dd>${escapeHtml(calc.formula || "")}${calc.result ? ` = ${escapeHtml(calc.result)}` : ""}</dd></div></dl>` : "";
+        const pages = (item.source_pages || []).length ? `原理图第 ${(item.source_pages || []).join("、")} 页` : "原理图页码未给出";
+        return `<article class="issue">
+          <header class="issue-head">
+            <span class="badge ${item.status === "confirmed" ? "error" : "warn"}">${escapeHtml(FINDING_STATUS[item.status] || item.status)}</span>
+            <span class="badge">${escapeHtml(FINDING_SEV[item.severity] || item.severity || "")}</span>
+            <strong class="mono">${escapeHtml(item.rule_id || "")}</strong>
+            <span>${escapeHtml(item.title || "")}</span>
+          </header>
+          <p>${escapeHtml(item.description || "")}</p>
+          <dl class="evidence">
+            <div><dt>器件</dt><dd>${escapeHtml((item.affected_components || []).join("、") || "未标位号")}</dd></div>
+            <div><dt>网络</dt><dd>${escapeHtml((item.affected_nets || []).join("、") || "未标网络")}</dd></div>
+            <div><dt>图纸</dt><dd>${escapeHtml(pages)}</dd></div>
+            ${(item.required_missing_inputs || []).length ? `<div><dt>缺少</dt><dd>${escapeHtml(item.required_missing_inputs.join("、"))}</dd></div>` : ""}
+          </dl>
+          ${calcHtml}
+          ${evidence}
+        </article>`;
+      }).join("");
+      const limits = (report.limits || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+      document.querySelector("#knowledgeResult").innerHTML = `
+        <p class="hint">结论：${escapeHtml(VERDICT_LABEL[report.verdict] || report.verdict || "")}</p>
+        ${cards || `<div class="empty"><p>这次没有列出问题。</p></div>`}
+        ${limits ? `<ul class="hint">${limits}</ul>` : ""}`;
+    }
+    async function reviewNetlist(event) {
+      event.preventDefault();
+      const button = document.querySelector("#netlistBtn");
+      const raw = document.querySelector("#netlistJson").value.trim();
+      if (!raw) {
+        toast("请先贴上网表 JSON。");
+        return;
+      }
+      let circuit;
+      try { circuit = JSON.parse(raw); }
+      catch (error) {
+        toast("网表 JSON 读不出来。");
+        return;
+      }
+      button.disabled = true;
+      try {
+        const response = await fetch("/api/schematic/knowledge/review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(circuit)
+        });
+        if (!response.ok) throw new Error(await apiError(response));
+        paintKnowledgeReport(await response.json());
+      } catch (error) {
+        toast(error.message || "约束审查没有完成");
+      } finally {
+        button.disabled = false;
+      }
     }
 
     async function boot() {
@@ -2237,6 +3274,7 @@
       paintPrivacy();
       paintMaterialStatus();
       try { await loadLlm(); } catch (error) {}
+      try { await loadKnowledge(); } catch (error) {}
       document.querySelector("#bootSkeleton").hidden = true;
       document.querySelector("#app").hidden = false;
       applyRoute(false);

@@ -18,8 +18,8 @@ def test_package_script_pins_embeddable_python():
     assert "embed-amd64.zip" in script
     assert "009D6BF7E3B2DDCA3D784FA09F90FE54336D5B60F0E0F305C37F400BF83CFD3B" in script
     assert "requirements-runtime.txt" in script
-    assert "repealed_map.csv" in script
     assert "data\\schematic_rules\\packs.json" in script
+    assert "data\\schematic_rules\\engine_catalog.json" in script
     assert '-Directory' in script
     assert "pytest" not in runtime
     assert "psycopg" not in runtime
@@ -32,4 +32,3 @@ def test_package_script_pins_embeddable_python():
     assert 'Join-Path $stage "libreoffice"' in script
     assert "program\\soffice.com" in script
     assert "/XF *.msi" in script
-    assert (ROOT / "backend" / "seeds" / "confirmed" / "manifest.yaml").is_file()

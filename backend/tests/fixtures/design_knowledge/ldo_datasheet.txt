@@ -1,0 +1,21 @@
+合成测试资料，不是厂商原文。
+型号 SYN-LDO-33。
+
+The minimum output capacitance is 10 uF.
+
+:::constraint
+id: syn-ldo-cout
+category: power
+title: 最小输出电容
+constraint_type: hard_limit
+description: 输出电容至少 10 uF。资料没有给出直流偏压降容曲线。
+parameter: cout_min
+min: 10
+value: 10
+unit: uF
+mpn: SYN-LDO-33
+source_page: 4
+source_section: 8.3 Output capacitor
+validation_method: compare_capacitance
+quote: The minimum output capacitance is 10 uF.
+:::

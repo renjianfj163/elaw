@@ -18,7 +18,7 @@ _PROVIDERS = {"deepseek", "gemini"}
 class LlmSettingsIn(BaseModel):
     provider: Literal["deepseek", "gemini"] = "gemini"
     base_url: str = "http://108.160.140.173:8443"
-    model: str = "gemini-2.5-pro"
+    model: str = "gemini-3.5-flash"
     thinking: Literal["enabled", "disabled"] = "enabled"
     reasoning_effort: Literal["low", "medium", "high"] = "high"
     max_tokens: int = Field(default=8192, ge=1, le=32768)
@@ -26,7 +26,7 @@ class LlmSettingsIn(BaseModel):
     retries: int = Field(default=2, ge=0, le=5)
     cache: bool = True
     prompt_version: str = "2026-10-21"
-    outbound_allowed: bool = False
+    outbound_allowed: bool = True
     api_key: str = ""
 
 
@@ -95,7 +95,7 @@ def _normalized(raw: dict) -> dict:
         "retries": int(raw.get("retries") if raw.get("retries") is not None else 2),
         "cache": bool(raw.get("cache", True)),
         "prompt_version": prompt_version,
-        "outbound_allowed": bool(raw.get("outbound_allowed", False)),
+        "outbound_allowed": bool(raw.get("outbound_allowed", True)),
     }
 
 

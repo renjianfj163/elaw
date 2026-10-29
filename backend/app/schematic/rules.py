@@ -48,6 +48,47 @@ def select_tags(requested: list[str], packs: list[dict]) -> list[str]:
     return chosen
 
 
+def append_rule_text(tag: str, sentence: str, path: Path | None = None) -> None:
+    """把人工确认过的一句补进已有规则包。同一标签不另开一条，避免被去重丢掉。"""
+    file = path or (repo_root() / "data" / "schematic_rules" / "packs.json")
+    sentence = sentence.strip()
+    if not file.is_file():
+        loaded = {"packs": []}
+    else:
+        loaded = json.loads(file.read_text(encoding="utf-8"))
+    packs = loaded.get("packs")
+    if not isinstance(packs, list):
+        packs = []
+        loaded["packs"] = packs
+    compact = "".join(sentence.split())
+    for item in packs:
+        if not isinstance(item, dict) or str(item.get("tag") or "").strip() != tag:
+            continue
+        text = str(item.get("text") or "").rstrip()
+        if compact and compact in "".join(text.split()):
+            return
+        item["text"] = f"{text}\n{sentence}" if text else sentence
+        _write_json(file, loaded)
+        return
+    packs.append(
+        {
+            "tag": tag,
+            "title": tag,
+            "hint": tag,
+            "text": sentence,
+            "apply": "tagged",
+        }
+    )
+    _write_json(file, loaded)
+
+
+def _write_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
 def render_rules(tags: list[str], packs: list[dict]) -> tuple[str, list[str]]:
     by_tag = {pack["tag"]: pack for pack in packs}
     used: list[str] = []

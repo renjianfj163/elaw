@@ -1,0 +1,19 @@
+合成测试资料，不是厂商原文。
+型号 SYN-MCU-10。
+
+The level-shifter OE is not defined during reset.
+
+:::constraint
+id: syn-mcu-boot
+category: boot_reset_clock
+title: 复位期间 OE 时序
+constraint_type: conditional
+description: 静态网表没有复位脉宽，只能要求单独核实启动时序。
+parameter: boot_timing
+value_text: undefined_during_reset
+mpn: SYN-MCU-10
+source_page: 9
+source_section: 3.4 Boot
+validation_method: timing_review
+quote: The level-shifter OE is not defined during reset.
+:::

@@ -1,6 +1,7 @@
 """从产品定义 Word 和 Datasheet PDF 抽出文字。
 
-抽出的全文可以再删成与图上器件相关的章节。审查仍只接收文本，不把整份文件直接送进模型。
+抽出的全文可以再删成与图上器件相关的章节。
+图中文字会接在文字层后面，一并进入可引用摘录。
 """
 
 from __future__ import annotations
@@ -8,7 +9,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from app.laws.extract import TextExtractError, extract_docx, extract_pdf
+from app.schematic.office_text import TextExtractError, extract_docx, extract_pdf
 from app.parse.convert import ConvertError, convert_doc_to_docx
 from app.schematic.review import MAX_BASIS_CHARS, MAX_PDF_BYTES
 
@@ -17,7 +18,7 @@ class MaterialError(Exception):
     pass
 
 
-def extract_material(filename: str, data: bytes, role: str) -> dict:
+def extract_material(filename: str, data: bytes, role: str, *, read_figures: bool = False) -> dict:
     name = Path(filename or "").name or "upload"
     suffix = Path(name).suffix.lower()
     if role == "product":
@@ -33,9 +34,17 @@ def extract_material(filename: str, data: bytes, role: str) -> dict:
     if len(data) > MAX_PDF_BYTES:
         raise MaterialError("文件超过 40MB")
     text = _read(name, suffix, data).strip()
-    if not text:
+    figures = _figures(data) if role == "datasheet" and read_figures else None
+    block = ""
+    if figures is not None:
+        from app.schematic.datasheet_figures import quotable_figure_block
+
+        block = quotable_figure_block(figures)
+        if block:
+            text = f"{text}\n\n{block}".strip() if text else block
+    if not text and not _has_figure_note(figures):
         raise MaterialError("没有抽出正文。扫描件请先做成可复制文本后再上传")
-    return {
+    body = {
         "role": role,
         "filename": name,
         "text": text,
@@ -43,6 +52,23 @@ def extract_material(filename: str, data: bytes, role: str) -> dict:
         "limit": MAX_BASIS_CHARS,
         "too_long": len(text) > MAX_BASIS_CHARS,
     }
+    if figures is not None:
+        body["figures"] = [item.model_dump() for item in figures.pages if item.text.strip()]
+        body["figure_pages"] = [item.page for item in figures.pages]
+        body["figure_status"] = figures.status
+        body["figure_note"] = figures.note
+    return body
+
+
+def _figures(data: bytes):
+    from app.schematic.datasheet_figures import figure_reader_or_none, read_datasheet_figures
+
+    reader, reason = figure_reader_or_none()
+    return read_datasheet_figures(data, reader=reader, skip_reason=reason)
+
+
+def _has_figure_note(figures) -> bool:
+    return figures is not None and bool(figures.note or any(item.text.strip() for item in figures.pages))
 
 
 def _read(name: str, suffix: str, data: bytes) -> str:

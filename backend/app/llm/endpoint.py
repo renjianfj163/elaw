@@ -6,9 +6,9 @@ from app.llm.runtime_env import runtime_env
 
 DEFAULT_GEMINI_PROXY = "http://108.160.140.173:8443"
 DEEPSEEK_BASE = "https://api.deepseek.com"
-MODELS = {"gemini": "gemini-2.5-pro", "deepseek": "deepseek-v4-flash"}
+MODELS = {"gemini": "gemini-3.5-flash", "deepseek": "deepseek-v4-flash"}
 LABELS = {
-    "gemini": "Gemini · gemini-2.5-pro",
+    "gemini": "Gemini · gemini-3.5-flash",
     "deepseek": "DeepSeek · deepseek-v4-flash",
 }
 

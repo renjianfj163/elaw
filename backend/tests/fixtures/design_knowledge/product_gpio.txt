@@ -1,0 +1,22 @@
+合成测试资料，不是产品需求原文。
+
+The GPIO12 interface shall be 3.3 V.
+
+:::constraint
+id: syn-product-gpio-3v3
+category: product
+title: GPIO12 接口电平
+constraint_type: hard_limit
+description: 产品要求 GPIO12 工作在 3.3 V。
+parameter: required_io_v
+min: 3.3
+max: 3.3
+value: 3.3
+unit: V
+refdes: U1
+pin: 12
+source_page: 1
+source_section: 5.1
+validation_method: compare_voltage
+quote: The GPIO12 interface shall be 3.3 V.
+:::

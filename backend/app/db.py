@@ -39,6 +39,15 @@ def make_session_factory(engine):
     return sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
+def open_session(url: str | None = None):
+    engine = make_engine(url)
+    if (url or database_url()).startswith("sqlite"):
+        from app.models import Base
+
+        Base.metadata.create_all(engine)
+    return make_session_factory(engine)()
+
+
 def ensure_runtime_schema(engine) -> None:
     """已有的 sqlite 库补上后加的列。新库由 create_all 建齐。"""
     if not str(engine.url).startswith("sqlite"):

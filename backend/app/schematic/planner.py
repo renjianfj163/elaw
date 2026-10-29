@@ -67,16 +67,27 @@ def parse_plan(content: str) -> CircuitAnalysisPlan:
 def planner_prompt(product_spec_text: str, packs: list[dict]) -> str:
     lines = [f"- {pack['tag']}：{pack['hint']}" for pack in packs]
     catalog = "\n".join(lines) if lines else "（当前没有可召回的规则标签）"
+    product = product_spec_text.strip()
+    if product:
+        opening = (
+            "请浏览本次上传的全部原理图，结合产品定义，只输出检索计划。\n"
+            f"【产品定义】\n{product}\n\n"
+        )
+    else:
+        opening = (
+            "请浏览本次上传的全部原理图，只输出检索计划。本次没有产品定义。\n"
+            "可以根据图纸上的料号和网络名判断器件类型，并且只用来选择下面的规则标签。"
+            "不要把这个判断写成审查结论。\n\n"
+        )
     return (
-        "请浏览这份原理图，结合产品定义，只输出检索计划。\n"
-        f"【产品定义】\n{product_spec_text.strip()}\n\n"
-        "【可选规则标签】只能从下面选择，不能自造：\n"
-        f"{catalog}\n\n"
-        "任务：\n"
-        "1. 识别图纸上的主要电路模块。\n"
-        "2. 列出图纸上实际画出的关键器件，写成位号（型号）。\n"
-        "3. 选择需要召回的规则标签。电源、信号接口、器件降额和可测试性是通用项，图纸上有对应电路就应选上。射频只在图纸上有射频链路时选择。\n"
-        "不要做具体审查，不要判断符合或不符合。看不清的器件不要编造。"
+        opening
+        + "【可选规则标签】只能从下面选择，不能自造：\n"
+        + f"{catalog}\n\n"
+        + "任务：\n"
+        + "1. 识别图纸上的主要电路模块。\n"
+        + "2. 列出图纸上实际画出的关键器件，写成位号（型号）。\n"
+        + "3. 选择需要召回的规则标签。电源、信号接口、器件降额和可测试性是通用项，图纸上有对应电路就应选上。射频只在图纸上有射频链路时选择。\n"
+        + "不要做具体审查，不要判断符合或不符合。看不清的器件不要编造。"
     )
 
 
@@ -89,7 +100,7 @@ def plan_schematic(
     product_spec_text: str,
     packs: list[dict],
 ) -> CircuitAnalysisPlan | None:
-    model = str(cfg.get("planner_model") or "gemini-2.5-flash")
+    model = str(cfg.get("planner_model") or "gemini-3.5-flash")
     prompt_version = f"{cfg.get('prompt_version') or PROMPT_VERSION}#plan"
     payload = {
         "pdf_sha256": pdf_sha,
@@ -107,7 +118,7 @@ def plan_schematic(
         "model": model,
         "system": PLANNER_SYSTEM,
         "user": planner_prompt(product_spec_text, packs),
-        "max_output_tokens": int(cfg.get("max_output_tokens") or 8192),
+        "max_output_tokens": int(cfg.get("max_output_tokens") or 65536),
         "schema": "plan",
     }
     attempts = int(cfg.get("retries", 2)) + 1
@@ -137,7 +148,7 @@ def _strings(value, name: str) -> list[str]:
         text = item.strip()
         if text and text not in found:
             found.append(text)
-        if len(found) >= 40:
+        if len(found) >= 400:
             break
     return found
 

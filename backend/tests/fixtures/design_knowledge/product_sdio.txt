@@ -1,0 +1,17 @@
+合成测试资料，不是产品需求原文。
+
+SDIO data lines shall be mapped end to end.
+
+:::constraint
+id: syn-product-sdio
+category: product
+title: 必须检查 SDIO 映射
+constraint_type: hard_limit
+description: 产品要求核对 SDIO 数据线的端到端映射。
+parameter: require_interface
+value_text: sdio
+source_page: 1
+source_section: 2 Interfaces
+validation_method: pin_map
+quote: SDIO data lines shall be mapped end to end.
+:::

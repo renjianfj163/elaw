@@ -266,7 +266,7 @@ def install_user_entries(folder: Path) -> None:
 def _create_shortcut(bat: Path) -> None:
     env = os.environ.copy()
     env["ELAW_SHORTCUT_TARGET"] = str(bat)
-    env["ELAW_SHORTCUT_NAME"] = "环评合规预审.lnk"
+    env["ELAW_SHORTCUT_NAME"] = "原理图审核.lnk"
     script = (
         "$shell = New-Object -ComObject WScript.Shell; "
         "$desk = [Environment]::GetFolderPath('Desktop'); "
@@ -311,7 +311,7 @@ def _remove_shortcut() -> None:
         "if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path }"
     )
     env = os.environ.copy()
-    env["ELAW_SHORTCUT_NAME"] = "环评合规预审.lnk"
+    env["ELAW_SHORTCUT_NAME"] = "原理图审核.lnk"
     subprocess.run(
         ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
         env=env,
