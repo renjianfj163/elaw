@@ -233,6 +233,24 @@
       "rationale": "主控芯片上电复位过程中 I/O 引脚处于高阻态，默认关断电阻可避免驱动芯片误开启引发安全隐患或器件损坏。",
       "status": "accepted",
       "rules_sha256": "aeaf9173d686a07875ea0a92faaa2b061bd2e0d56b9dffcccec8917c23e54439"
+    },
+    {
+      "id": "dc4218d8-7387-40f9-b7d5-390980eb7a19",
+      "suggested_tag": "dft_hygiene",
+      "text": "主电源直流输入端口应配置瞬态电压抑制器件，以防护电源过压与浪涌冲击。",
+      "trigger_context": "板级主电源直流输入接口及前级防护电路",
+      "rationale": "主电源入口易受热插拔、外部适配器异常或线缆感应产生的电压浪涌冲击，配置瞬态电压抑制器件可有效钳位尖峰电压，保护后续电源变换电路及敏感器件。",
+      "status": "accepted",
+      "rules_sha256": "3b40bea44b035d7550669c0462dd740eee9767ab2a6e9a496a2563ec1b4a843b"
+    },
+    {
+      "id": "4d3a0252-a1d0-47f8-b6d6-7fe45e94f63e",
+      "suggested_tag": "high_speed_digital",
+      "text": "可编程总线从器件的地址选择引脚应配置确定的电平连接，以固定总线通讯地址并防止信号悬空。",
+      "trigger_context": "包含可配置地址选择引脚的从芯片电路",
+      "rationale": "总线从器件依赖地址选择管脚确定其在总线上的身份，引脚悬空可能导致上电时地址判定错误或通信过程中地址漂移，造成总线寻址失败。",
+      "status": "accepted",
+      "rules_sha256": "3b40bea44b035d7550669c0462dd740eee9767ab2a6e9a496a2563ec1b4a843b"
     }
   ]
 }
