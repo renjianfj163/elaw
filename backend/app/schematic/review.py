@@ -32,7 +32,7 @@ from app.schematic.evidence import (
 )
 from app.schematic.quotes import quote_matches
 
-PROMPT_VERSION = "schematic-3"
+PROMPT_VERSION = "schematic-4"
 MAX_BASIS_CHARS = 600_000
 MAX_PDF_BYTES = 40 * 1024 * 1024
 MAX_SCHEMATIC_FILES = 120
@@ -53,6 +53,8 @@ SYSTEM_INSTRUCTION = """你是一位资深的硬件电路设计审核专家。�
 - 线条遮挡、符号重叠或无法看清连接时，conclusion 使用「无法判定」。
 - quote 必须是本次依据中某一段的连续原文，不要改写，不要补字。requirement_source 必须和这段出处一致。
 - check_type 为 numeric 时，不要自行判断符合或不符合，conclusion 固定写「无法判定」。把从图纸读到的数放进 observed（value 与 unit）。把依据中的比较写成 compare_op、limit_value、limit_unit。区间比较时 compare_op 用 between，并填写 limit_high。param_name 用简短英文参数名。这些数字必须原样出现在依据原文里。不要输出 requirement 对象。
+- 耐压降额：额定耐压写入 observed。工作电压写入 calc_inputs，name 为 left，origin 为 drawing。规则原文里的百分比写入 calc_inputs，name 为 right，unit 为 %。calc_op 用 percent_divide，compare_op 用 >=。limit_unit 写额定耐压的单位，不要写 %。origin 为 drawing 的数来自图纸，不必出现在 quote 里。百分比必须出现在 quote 里。不要把伏特和百分号直接比较。
+- 「不得超过」才是数值上限。「宜」或「建议」不要再做成一条会判成不符合的数值项。写明只适用于某个工作电压的规则，工作电压不是该值时 conclusion 使用「不适用」。
 - 其他 check_type 的 conclusion 只能是：符合、不符合、无法判定、不适用。
 - status 固定为 draft。
 - 只输出一个 JSON 对象，不要输出解释。对象只有 items 数组。"""

@@ -251,6 +251,51 @@
       "rationale": "总线从器件依赖地址选择管脚确定其在总线上的身份，引脚悬空可能导致上电时地址判定错误或通信过程中地址漂移，造成总线寻址失败。",
       "status": "accepted",
       "rules_sha256": "3b40bea44b035d7550669c0462dd740eee9767ab2a6e9a496a2563ec1b4a843b"
+    },
+    {
+      "id": "23120416-ae5c-4a14-83c3-db1f70f07303",
+      "suggested_tag": "dft_hygiene",
+      "text": "NTC温度传感器的分压采样节点应配置低通滤波电容，以抑制噪声对模拟采样信号的干扰。",
+      "trigger_context": "电路中包含基于NTC热敏电阻的分压采样回路连接至ADC或微控制器采样引脚",
+      "rationale": "温度采样线路容易受到周围高频开关电源及数字信号辐射噪声干扰，配置滤波电容可消除高频纹波，保障模数转换采样的精度与温度控制稳定性。",
+      "status": "accepted",
+      "rules_sha256": "85ac8031830f6aa2e1834edb954808ea4719d119bf75cccbdaa8fcd89c58567f"
+    },
+    {
+      "id": "abba3ab2-2f7a-4c35-b71b-cf9d112dce28",
+      "suggested_tag": "component_derating",
+      "text": "激光二极管接口两端宜并联反向保护二极管，以防止反向瞬态电压与静电击穿激光器件。",
+      "trigger_context": "激光驱动电路或激光二极管接口",
+      "rationale": "激光二极管反向耐压较低且极易受静电和反向感应尖峰电压损坏，并联反向二极管能将反向电压钳位在安全范围内。",
+      "status": "accepted",
+      "rules_sha256": "7c8b533933abeef5757270813afa0831679125536ff70be10631603e987deb46"
+    },
+    {
+      "id": "6a2a0d6b-3c06-4232-a192-a97403101bb2",
+      "suggested_tag": "power_supply",
+      "text": "开关电源功率 MOSFET 的栅极驱动回路中宜串联栅极电阻，以控制开关管导通与关断速度并降低电磁干扰。",
+      "trigger_context": "开关电源控制器与 MOSFET 栅极驱动引脚",
+      "rationale": "栅极电阻可限制栅极驱动电流的上升率，平缓 dV/dt 和 dI/dt，从而有效抑制开关节点的高频振铃和 EMI 辐射。",
+      "status": "accepted",
+      "rules_sha256": "7c8b533933abeef5757270813afa0831679125536ff70be10631603e987deb46"
+    },
+    {
+      "id": "544f69ac-4531-43b5-9aca-824e60e2de51",
+      "suggested_tag": "high_speed_digital",
+      "text": "驱动继电器、电磁阀或电机等感性负载的开关回路中应配置续流二极管或过压吸收电路，以抑制关断时的反向电动势。",
+      "trigger_context": "电路图中包含电磁阀驱动回路（如DRE_1、DRE_2开关管并联续流二极管1N4007W）。",
+      "rationale": "感性负载在电流突然切断时会产生很高电压的反向电动势，若无续流通路容易击穿驱动MOSFET或达林顿管。",
+      "status": "accepted",
+      "rules_sha256": "e2bb74715f0a0e9e7d31a90d92255b7bb1448e4b28de34a19c098aa2e09190a2"
+    },
+    {
+      "id": "65199f89-d0f6-400e-9677-1030c5320b03",
+      "suggested_tag": "power_supply",
+      "text": "隔离数字器件与隔离电源芯片的输入侧和输出侧接地网络应采用不同的网络标号，不得跨越隔离带直接连接。",
+      "trigger_context": "电路图中使用了ADUM5000隔离电源和ADUM1250隔离通信芯片（如GND1与GNDISO/GND2分割）。",
+      "rationale": "隔离前后端接地网络若混用标号会导致PCB布线时电气隔离失效，无法起到共模抑制与地环路切断作用。",
+      "status": "accepted",
+      "rules_sha256": "e2bb74715f0a0e9e7d31a90d92255b7bb1448e4b28de34a19c098aa2e09190a2"
     }
   ]
 }

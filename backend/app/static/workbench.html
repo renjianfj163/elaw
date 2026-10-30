@@ -534,6 +534,17 @@
     }
     .issue.on { border-color: var(--primary); border-left-width: 3px; }
     .issue-head { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+    .issue-group h3 {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-2);
+      margin: var(--space-3) 0 var(--space-2);
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .issue-group:first-child h3 { margin-top: 0; }
+    .issue-group h3 .count { color: var(--muted); font-weight: 500; }
+    .issue-group ul { margin: 0 0 var(--space-2); padding-left: 1.2em; }
     .evidence { display: grid; gap: var(--space-2); margin: var(--space-2) 0; }
     .evidence div { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: var(--space-2); }
     .evidence dt { color: var(--muted); }
@@ -2273,6 +2284,49 @@
       if (item.conclusion === "无法判定") return { id: "warn", label: "警告" };
       return { id: "info", label: "提示" };
     }
+    function isPassed(item) {
+      return item?.conclusion === "符合";
+    }
+    function issueEntries(items) {
+      const rank = { error: 0, warn: 1, info: 2 };
+      return (items || []).map((item, index) => ({ item, index, sev: severity(item) }))
+        .filter((entry) => !isPassed(entry.item))
+        .sort((a, b) => rank[a.sev.id] - rank[b.sev.id] || a.index - b.index);
+    }
+    function issueGroups(entries) {
+      const groups = [];
+      entries.forEach((entry) => {
+        const last = groups[groups.length - 1];
+        if (!last || last.id !== entry.sev.id) groups.push({ id: entry.sev.id, label: entry.sev.label, entries: [entry] });
+        else last.entries.push(entry);
+      });
+      return groups;
+    }
+    function tallyLine(items) {
+      const counts = { error: 0, warn: 0, info: 0 };
+      let passed = 0;
+      (items || []).forEach((item) => {
+        if (isPassed(item)) { passed += 1; return; }
+        counts[severity(item).id] += 1;
+      });
+      const openTotal = counts.error + counts.warn + counts.info;
+      if (!openTotal && passed) return `符合 ${passed} 条，未列入报告，不用复核`;
+      const open = `错误 ${counts.error} · 警告 ${counts.warn} · 提示 ${counts.info}`;
+      return passed ? `${open}。符合 ${passed} 条未列入，不用复核` : open;
+    }
+    function layoutFindings(groups, bridgeHtml, renderGroup) {
+      const parts = [];
+      let placed = !bridgeHtml;
+      groups.forEach((group) => {
+        if (!placed && group.id === "info") {
+          parts.push(bridgeHtml);
+          placed = true;
+        }
+        parts.push(renderGroup(group));
+      });
+      if (!placed && bridgeHtml) parts.push(bridgeHtml);
+      return parts.join("");
+    }
     function planSummary(snapshot) {
       const modules = snapshot.identified_modules || [];
       const components = snapshot.active_components || [];
@@ -2543,18 +2597,26 @@
     function renderResult(snapshot) {
       currentResult = snapshot;
       const items = snapshot.items || [];
-      const cards = items.map((item, index) => {
-        const sev = severity(item);
-        const method = item.method === "rule-engine" ? { id: "rule", label: "规则" } : { id: "ai", label: "AI" };
-        const pair = numericPair(item);
-        const differ = Boolean(pair) && pair.left !== pair.right;
-        const observed = pair ? `<span class="mono${differ ? " diff" : ""}">${escapeHtml(pair.left)}</span>` : escapeHtml(item.findings || "没有读到图上值");
-        const required = pair
-          ? `<span class="mono">${escapeHtml(pair.right)}</span>${item.quote ? ` · ${escapeHtml(item.quote)}` : ""}`
-          : escapeHtml(item.quote || "没有读到资料值");
-        const review = snapshot.reviews[index] || { state: "pending", note: "" };
-        const rule = CHECK_LABEL[item.check_type] || item.check_type || "规则";
-        return `<article class="issue" tabindex="0" data-idx="${index}" data-sev="${sev.id}" data-ref="${escapeHtml(item.target_refdes || "")}">
+      const groups = issueGroups(issueEntries(items));
+      const rejected = (snapshot.rejected || []).map((item) => `<li data-ref="${escapeHtml(item.target_refdes || "")}">${escapeHtml(item.target_refdes || "未标位号")}：${escapeHtml(item.reason || "证据不足")}</li>`).join("");
+      const rejectedHtml = rejected
+        ? `<section class="issue-group" id="rejectedBlock" data-group="warn"><h3>证据未通过</h3><ul>${rejected}</ul><p class="hint">这些条目在警告里，标成待核实。不能把它们当成手册审查已经完成，也不能当成已经排除。</p></section>`
+        : "";
+      const listHtml = layoutFindings(groups, rejectedHtml, (group) => {
+        const body = group.entries.map((entry) => {
+          const item = entry.item;
+          const index = entry.index;
+          const sev = entry.sev;
+          const method = item.method === "rule-engine" ? { id: "rule", label: "规则" } : { id: "ai", label: "AI" };
+          const pair = numericPair(item);
+          const differ = Boolean(pair) && pair.left !== pair.right;
+          const observed = pair ? `<span class="mono${differ ? " diff" : ""}">${escapeHtml(pair.left)}</span>` : escapeHtml(item.findings || "没有读到图上值");
+          const required = pair
+            ? `<span class="mono">${escapeHtml(pair.right)}</span>${item.quote ? ` · ${escapeHtml(item.quote)}` : ""}`
+            : escapeHtml(item.quote || "没有读到资料值");
+          const review = snapshot.reviews[index] || { state: "pending", note: "" };
+          const rule = CHECK_LABEL[item.check_type] || item.check_type || "规则";
+          return `<article class="issue" tabindex="0" data-idx="${index}" data-sev="${sev.id}" data-ref="${escapeHtml(item.target_refdes || "")}">
           <header class="issue-head">
             <span class="badge ${sev.id}">${sev.label}</span>
             <span class="badge ${method.id}">${method.label}</span>
@@ -2578,8 +2640,9 @@
             <input data-note="${index}" type="text" placeholder="备注" value="${escapeHtml(review.note || "")}" ${review.state === "ignored" ? "" : "hidden"} />
           </div>
         </article>`;
-      }).join("");
-      const rejected = (snapshot.rejected || []).map((item) => `<li>${escapeHtml(item.target_refdes || "未标位号")}：${escapeHtml(item.reason || "证据不足")}</li>`).join("");
+        }).join("");
+        return `<section class="issue-group" data-group="${group.id}"><h3>${group.label} <span class="count">${group.entries.length}</span></h3>${body}</section>`;
+      });
       const shown = previewEntry();
       const previewFiles = schematicState.files || [];
       const previewPicker = previewFiles.length > 1
@@ -2589,6 +2652,7 @@
         ? `<div class="preview-frame zoom-${previewZoom}" id="previewFrame"><iframe id="pdfFrame" data-base="${shown.url}" title="原理图预览" src="${shown.url}#page=1&view=FitH"></iframe></div>`
         : `<div class="empty"><p>这份记录没有留着 PDF，问题列表仍可查看。</p><button type="button" class="btn btn-primary" id="previewPick">重新选择 PDF</button></div>`;
       const hash = snapshot.result_hash ? snapshot.result_hash.slice(0, 8) : "—";
+      const openCount = items.filter((item) => !isPassed(item)).length;
       document.querySelector("#schematicResult").innerHTML = `
         <section class="card result-card">
           <div class="page-head">
@@ -2619,14 +2683,14 @@
                 <label>位号<input id="filterRef" type="search" placeholder="例如 U1" /></label>
                 <label>复核<select id="filterRev"><option value="">全部</option><option value="open">未复核</option><option value="done">已复核</option></select></label>
               </div>
-              <div id="issueList">${cards || ""}</div>
-              <div class="empty" id="issueEmpty" ${items.length ? "hidden" : ""}>
-                <p>${items.length ? "没有符合筛选的问题。" : (snapshot.reason ? "这次没有生成检查项。请看上面的说明后重新生成。" : "这次没有可展示的草稿。请核对摘录是否覆盖图上器件，然后重新生成。")}</p>
-                <button type="button" class="btn btn-secondary" id="clearFilter">${items.length ? "清空筛选" : "回到上传"}</button>
+              ${items.length ? `<p class="hint" id="issueTally">${escapeHtml(tallyLine(items))}</p>` : ""}
+              <div id="issueList">${listHtml}</div>
+              <div class="empty" id="issueEmpty" ${openCount ? "hidden" : ""}>
+                <p>${openCount ? "没有符合筛选的问题。" : (items.length ? "已符合的项不列入清单，也不需要复核。" : (snapshot.reason ? "这次没有生成检查项。请看上面的说明后重新生成。" : "这次没有可展示的草稿。请核对摘录是否覆盖图上器件，然后重新生成。"))}</p>
+                ${items.length && !openCount ? "" : `<button type="button" class="btn btn-secondary" id="clearFilter">${items.length ? "清空筛选" : "回到上传"}</button>`}
               </div>
             </div>
           </div>
-          ${rejected ? `<h2>证据未通过的原因</h2><ul>${rejected}</ul><p class="hint">这些条目仍留在上面，标成待核实。不能把它们当成手册审查已经完成，也不能当成已经排除。</p>` : ""}
         </section>
         ${pendingRulesHtml(snapshot)}`;
       bindResult();
@@ -2639,7 +2703,8 @@
       } else queueDatasheetLookup(snapshot);
     }
     function pendingCount() {
-      return (currentResult.items || []).filter((_, index) => {
+      return (currentResult.items || []).filter((item, index) => {
+        if (isPassed(item)) return false;
         const state = currentResult.reviews[index]?.state;
         return state !== "reviewed" && state !== "ignored";
       }).length;
@@ -2648,9 +2713,10 @@
       const button = document.querySelector("#exportBtn");
       const reason = document.querySelector("#exportReason");
       if (!button) return;
-      const total = (currentResult.items || []).length;
+      const items = currentResult.items || [];
+      const open = items.filter((item) => !isPassed(item)).length;
       const jsonButton = document.querySelector("#exportJsonBtn");
-      if (!total) {
+      if (!items.length) {
         button.disabled = true;
         if (jsonButton) jsonButton.disabled = true;
         reason.textContent = "没有可导出的问题。";
@@ -2658,27 +2724,46 @@
       }
       button.disabled = false;
       if (jsonButton) jsonButton.disabled = false;
+      if (!open) {
+        reason.textContent = "已符合的项不需要复核，报告里不再逐条列出。";
+        return;
+      }
       const pending = pendingCount();
       reason.textContent = pending
-        ? `还有 ${pending} 条未复核或忽略。可以先导出草稿，这些条目会标成未复核。`
-        : "已全部处理，可以导出报告。";
+        ? `还有 ${pending} 条未复核或忽略。可以先导出草稿，这些条目会标成未复核。符合的项不会写入报告。`
+        : "要复核的条目已全部处理，可以导出报告。符合的项不会写入报告。";
     }
     function applyIssueFilter() {
       const sev = document.querySelector("#filterSev").value;
       const ref = document.querySelector("#filterRef").value.trim().toLowerCase();
       const rev = document.querySelector("#filterRev").value;
       let shown = 0;
-      document.querySelectorAll(".issue").forEach((card) => {
+      document.querySelectorAll("#issueList .issue").forEach((card) => {
         const state = currentResult.reviews[card.dataset.idx]?.state || "pending";
         const handled = state === "reviewed" || state === "ignored";
         const match = (!sev || card.dataset.sev === sev) && (!ref || card.dataset.ref.toLowerCase().includes(ref)) && (!rev || (rev === "done" ? handled : !handled));
         card.hidden = !match;
         if (match) shown += 1;
       });
+      document.querySelectorAll("#issueList .issue-group").forEach((group) => {
+        if (group.id === "rejectedBlock") return;
+        group.hidden = ![...group.querySelectorAll(".issue")].some((card) => !card.hidden);
+      });
+      const rejectedBlock = document.querySelector("#rejectedBlock");
+      if (rejectedBlock) {
+        let reasons = 0;
+        rejectedBlock.querySelectorAll("li").forEach((li) => {
+          const match = (!sev || sev === "warn") && !rev && (!ref || (li.dataset.ref || "").toLowerCase().includes(ref));
+          li.hidden = !match;
+          if (match) reasons += 1;
+        });
+        rejectedBlock.hidden = reasons === 0;
+        if (reasons) shown += 1;
+      }
       const empty = document.querySelector("#issueEmpty");
-      const hasItems = (currentResult.items || []).length > 0;
+      const hasOpen = (currentResult.items || []).some((item) => !isPassed(item));
       empty.hidden = shown !== 0;
-      if (hasItems && shown === 0) empty.querySelector("p").textContent = "没有符合筛选的问题。";
+      if (hasOpen && shown === 0) empty.querySelector("p").textContent = "没有符合筛选的问题。";
     }
     function selectIssue(card) {
       document.querySelectorAll(".issue.on").forEach((el) => el.classList.remove("on"));
@@ -2806,19 +2891,19 @@
         return "";
       }).filter(Boolean);
     }
-    function reportHtml(payload) {
-      const items = payload.items || [];
-      const cards = items.map((item, index) => {
-        const state = item.review_state || "pending";
-        const comment = item.review_comment ? `<p>复核备注：${escapeHtml(item.review_comment)}</p>` : "";
-        const reason = item.reason ? `<p>说明：${escapeHtml(item.reason)}</p>` : "";
-        const traces = traceSentences(item);
-        const numbers = traces.length ? `<p>数值比较：${escapeHtml(traces.join("；"))}</p>` : "";
-        const method = item.method === "rule-engine" ? "规则引擎" : "模型";
-        const dual = item.dual_review ? `，${escapeHtml(item.dual_review)}` : "";
-        return `<article>
-          <h2>${escapeHtml(item.target_refdes || "未标位号")} · ${escapeHtml(item.conclusion || "")}</h2>
-          <p class="mark">需人工复核 · ${escapeHtml(reviewWord(state))}</p>
+    function reportArticle(entry) {
+      const item = entry.item;
+      const state = item.review_state || "pending";
+      const comment = item.review_comment ? `<p>复核备注：${escapeHtml(item.review_comment)}</p>` : "";
+      const reason = item.reason ? `<p>说明：${escapeHtml(item.reason)}</p>` : "";
+      const traces = traceSentences(item);
+      const numbers = traces.length ? `<p>数值比较：${escapeHtml(traces.join("；"))}</p>` : "";
+      const method = item.method === "rule-engine" ? "规则引擎" : "模型";
+      const dual = item.dual_review ? `，${escapeHtml(item.dual_review)}` : "";
+      const hold = item.admission === "needs_evidence" ? " · 待核实" : "";
+      return `<article>
+          <h3>${escapeHtml(entry.sev.label)} · ${escapeHtml(item.target_refdes || "未标位号")} · ${escapeHtml(item.conclusion || "")}</h3>
+          <p class="mark">需人工复核 · ${escapeHtml(reviewWord(state))}${hold}</p>
           <p>类型：${escapeHtml(CHECK_LABEL[item.check_type] || item.check_type || "规则")} · 结论来源：${method}${dual}</p>
           <p>图上情况：${escapeHtml(item.findings || "")}</p>
           <p>依据类型：${escapeHtml(evidenceSummary(item))}</p>
@@ -2826,15 +2911,31 @@
           ${item.calculation ? `<p>计算：${escapeHtml(item.calculation.formula || "未重算")}。${escapeHtml(item.calculation.assumptions || "")}</p>` : ""}
           ${numbers}${reason}${comment}
         </article>`;
-      }).join("");
+    }
+    function reportHtml(payload) {
+      const items = payload.items || [];
+      const groups = issueGroups(issueEntries(items));
       const rejected = (payload.rejected || []).map((item) => `<li>${escapeHtml(item.target_refdes || "未标位号")}：${escapeHtml(item.reason || "未进入清单")}</li>`).join("");
+      const rejectedHtml = rejected
+        ? `<h2 class="section warn">证据未通过</h2><ul>${rejected}</ul><p class="meta">这些条目在警告里，标成待核实。缺少证据时不能当成已完成的手册审查。</p>`
+        : "";
+      const findings = layoutFindings(groups, rejectedHtml, (group) => {
+        const body = group.entries.map((entry) => reportArticle(entry)).join("");
+        return `<h2 class="section ${group.id}">${group.label}（${group.entries.length}）</h2>${body}`;
+      });
       const finger = payload.fingerprint || {};
       const modules = (payload.identified_modules || []).join("、") || "未记录";
       const components = (payload.active_components || []).join("、") || "未记录";
-      const pending = items.filter((item) => (item.review_state || "pending") === "pending").length;
-      const progress = pending
-        ? `检查项 ${items.length} 条，其中 ${pending} 条尚未复核或忽略。`
-        : `检查项 ${items.length} 条，均已复核或忽略。`;
+      const openEntries = issueEntries(items);
+      const pending = openEntries.filter((entry) => (entry.item.review_state || "pending") === "pending").length;
+      const passed = items.length - openEntries.length;
+      const reviewLine = !openEntries.length
+        ? ""
+        : (pending ? `还有 ${pending} 条尚未复核或忽略。` : "要复核的条目均已处理。");
+      const summary = items.length ? `${tallyLine(items)}${reviewLine ? `。${reviewLine}` : ""}` : "这次没有进入清单的检查项。";
+      const disclaimer = (payload.disclaimer || "辅助预审，不构成设计签核。审查项为草稿，需人工复核。")
+        .replace("审查项为草稿，需人工复核。", "错误、警告和提示为草稿，需人工复核。结论为符合的不写入报告。");
+      const emptyFindings = passed ? "<p>已符合的项未逐条列入。</p>" : "<p>这次没有进入清单的检查项。</p>";
       return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -2843,31 +2944,35 @@
   <style>
     body { margin: 32px auto; max-width: 820px; color: #1c1917; font: 16px/1.65 "Segoe UI", "Microsoft YaHei", sans-serif; }
     h1 { font-size: 28px; line-height: 1.3; margin-bottom: 8px; }
-    h2 { font-size: 18px; margin: 0 0 6px; }
-    h2.section { margin: 28px 0 8px; }
+    h2 { font-size: 20px; margin: 28px 0 8px; }
+    h3 { font-size: 18px; margin: 0 0 6px; }
+    h2.error { color: #9f1d1d; }
+    h2.warn { color: #7a4e00; }
+    h2.info { color: #57534e; }
     article { border-top: 1px solid #e7e5e4; padding: 16px 0; }
     .mark { color: #9a3412; font-weight: 650; }
     .note { background: #fff7ed; border: 1px solid #fed7aa; padding: 12px 14px; }
+    .tally { font-weight: 650; }
     .meta, footer { color: #57534e; font-size: 14px; }
     @media print { body { margin: 0; } }
   </style>
 </head>
 <body>
-  <p class="mark">草稿 · 需人工复核</p>
+  <p class="mark">${openEntries.length ? "草稿 · 需人工复核" : "没有待复核问题"}</p>
   <h1>原理图审查报告</h1>
   <p>图纸：${escapeHtml(payload.filename || "未命名原理图")}</p>
-  <p class="note">${escapeHtml(payload.disclaimer || "辅助预审，不构成设计签核。审查项为草稿，需人工复核。")}</p>
+  <p class="note">${escapeHtml(disclaimer)}</p>
   ${payload.coverage_note && !(payload.disclaimer || "").includes(payload.coverage_note) ? `<p class="note">${escapeHtml(payload.coverage_note)}</p>` : ""}
-  <p class="meta">${escapeHtml(progress)}</p>
+  <p class="tally">${escapeHtml(summary)}</p>
+  <h2>审查范围</h2>
+  ${payload.plan_note ? `<p class="note">${escapeHtml(payload.plan_note)}</p>` : ""}
   <p>识别到的模块：${escapeHtml(modules)}</p>
   <p>关键器件：${escapeHtml(components)}</p>
-  <h2 class="section">检查项</h2>
-  ${cards || "<p>这次没有进入清单的检查项。</p>"}
-  ${rejected ? `<h2 class="section">证据未通过的原因</h2><ul>${rejected}</ul><p class="meta">这些条目仍留在上面。缺少证据时不能当成已完成的手册审查。</p>` : ""}
+  ${findings || emptyFindings}
   <footer>
     <p>输入指纹：PDF ${escapeHtml(finger.pdf_sha256_8 || "—")} · 产品定义 ${escapeHtml(finger.product_sha256_8 || "—")} · Datasheet ${escapeHtml(finger.datasheet_sha256_8 || "—")}</p>
     <p>结果 ${escapeHtml(finger.result_hash || "—")}</p>
-    <p>数值比较来自规则引擎，其余结论来自模型。本报告是草稿，需人工复核，不构成设计签核。</p>
+    <p>数值比较来自规则引擎，其余结论来自模型。符合的检查项未写入本报告。错误、警告和提示仍需人工复核，不构成设计签核。</p>
   </footer>
 </body>
 </html>`;
@@ -2912,9 +3017,12 @@
       }
       host.innerHTML = list.map((item) => {
         const name = item.filename || "原理图";
+        const rows = item.items || [];
+        const open = rows.filter((row) => row.conclusion !== "符合").length;
+        const countLabel = rows.length ? (open ? `${open} 条待看` : "已符合") : "0 条";
         return `<article class="card history"><button type="button" class="history-open" data-id="${escapeHtml(item.id)}">
           <span class="name">${escapeHtml(name)}</span>
-          <span class="hint">${formatClock(item.at)} · ${(item.items || []).length} 条 · PDF ${escapeHtml(item.pdfSha8 || "—")}</span>
+          <span class="hint">${formatClock(item.at)} · ${countLabel} · PDF ${escapeHtml(item.pdfSha8 || "—")}</span>
         </button><button type="button" class="btn btn-text history-remove" data-remove-history="${escapeHtml(item.id)}" aria-label="移除 ${escapeHtml(name)}">移除</button></article>`;
       }).join("");
       host.querySelectorAll("[data-id]").forEach((button) => {
@@ -3338,6 +3446,11 @@
       not_applicable: "不适用"
     };
     const FINDING_SEV = { critical: "严重", high: "高", medium: "中", low: "低", info: "提示" };
+    function findingBand(item) {
+      if (item.severity === "info") return { id: "info", label: "提示" };
+      if (item.severity === "medium" || item.severity === "low") return { id: "warn", label: "警告" };
+      return { id: "error", label: "错误" };
+    }
     const VERDICT_LABEL = { findings: "有发现", not_assessable: "无法判定", no_applicable_rules: "没有适用规则", clear: "没有确定问题" };
 
     async function apiError(response) {
@@ -3467,8 +3580,21 @@
       await loadKnowledge();
     }
     function paintKnowledgeReport(report) {
-      const findings = report.findings || [];
-      const cards = findings.map((item) => {
+      const sevRank = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+      const bandRank = { error: 0, warn: 1, info: 2 };
+      const ranked = (report.findings || []).map((item, index) => ({ item, index, band: findingBand(item) }))
+        .sort((a, b) => bandRank[a.band.id] - bandRank[b.band.id] || (sevRank[a.item.severity] ?? 1) - (sevRank[b.item.severity] ?? 1) || a.index - b.index);
+      const groups = [];
+      ranked.forEach((entry) => {
+        const last = groups[groups.length - 1];
+        if (!last || last.id !== entry.band.id) groups.push({ id: entry.band.id, label: entry.band.label, entries: [entry] });
+        else last.entries.push(entry);
+      });
+      const counts = { error: 0, warn: 0, info: 0 };
+      ranked.forEach((entry) => { counts[entry.band.id] += 1; });
+      const cards = groups.map((group) => {
+        const body = group.entries.map((entry) => {
+          const item = entry.item;
         const evidence = (item.constraint_evidence || []).map((row) => `<blockquote class="quote">${escapeHtml(row.document_title || "资料")}${row.document_revision ? ` · ${escapeHtml(row.document_revision)}` : ""}${row.source_page != null ? ` · 第 ${escapeHtml(row.source_page)} 页` : ""}${row.source_section ? ` · ${escapeHtml(row.source_section)}` : ""}<br>${escapeHtml(row.source_quote || "")}</blockquote>`).join("");
         const calc = item.calculation;
         const calcHtml = calc ? `<dl class="evidence"><div><dt>计算</dt><dd>${escapeHtml(calc.formula || "")}${calc.result ? ` = ${escapeHtml(calc.result)}` : ""}</dd></div></dl>` : "";
@@ -3495,6 +3621,8 @@
           ${calcHtml}
           ${evidence}
         </article>`;
+        }).join("");
+        return `<section class="issue-group" data-group="${group.id}"><h3>${group.label} <span class="count">${group.entries.length}</span></h3>${body}</section>`;
       }).join("");
       const limits = (report.limits || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
       const decisions = (report.runs || [])
@@ -3503,6 +3631,7 @@
         .join("；");
       document.querySelector("#knowledgeResult").innerHTML = `
         <p class="hint">结论：${escapeHtml(VERDICT_LABEL[report.verdict] || report.verdict || "")}</p>
+        ${ranked.length ? `<p class="hint">错误 ${counts.error} · 警告 ${counts.warn} · 提示 ${counts.info}</p>` : ""}
         ${decisions ? `<p class="hint">连接检查：${decisions}</p>` : ""}
         ${cards || `<div class="empty"><p>这次没有列出问题。</p></div>`}
         ${limits ? `<ul class="hint">${limits}</ul>` : ""}`;

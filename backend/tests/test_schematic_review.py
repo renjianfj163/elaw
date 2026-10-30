@@ -332,6 +332,92 @@ def test_derived_limit_is_recomputed_without_appearing_in_the_quote(tmp_path):
     assert kinds == {"general_rule", "derived_calculation"}
 
 
+def test_board_voltages_can_finish_a_percent_derating(tmp_path):
+    quote = "陶瓷电容的工作电压不得超过额定耐压的 70%。图上缺额定耐压或工作电压时，结论为无法判定。"
+    shared = {
+        "target_refdes": "C501",
+        "check_type": "numeric",
+        "requirement_source": "审查规则",
+        "findings": "图纸上的陶瓷去耦电容 C501（100nF）额定耐压为 50V，工作在 12V 总线上。",
+        "conclusion": "无法判定",
+        "quote": quote,
+        "compare_op": ">=",
+        "limit_value": 70,
+        "limit_unit": "%",
+        "param_name": "rated_voltage",
+        "calc_op": "percent_divide",
+        "calc_inputs": [
+            {"name": "left", "value": 12, "unit": "V", "origin": "drawing"},
+            {"name": "right", "value": 70, "unit": "%"},
+        ],
+    }
+
+    def run(rated: float):
+        transport = _transport([{"items": [_item(observed={"value": rated, "unit": "V"}, **shared)]}])
+        result = review_schematic(
+            _pdf(tmp_path),
+            "",
+            "",
+            rules_text=quote,
+            transport=transport,
+            cache=MemoryCache(),
+            config=CFG,
+        )
+        return result.items[0]
+
+    passed = run(50)
+    assert passed.admission == "accepted"
+    assert passed.conclusion == "符合"
+    assert abs(passed.calculation.calculated_value - (12 / 0.7)) < 1e-9
+    assert "12" not in quote
+
+    tight = run(16)
+    assert tight.conclusion == "不符合"
+    assert tight.admission == "accepted"
+
+
+def test_percent_limit_still_has_to_be_in_the_rule_text(tmp_path):
+    quote = "陶瓷电容的工作电压不得超过额定耐压。图上缺额定耐压或工作电压时，结论为无法判定。"
+    transport = _transport(
+        [
+            {
+                "items": [
+                    _item(
+                        target_refdes="C501",
+                        check_type="numeric",
+                        requirement_source="审查规则",
+                        findings="图纸上的陶瓷去耦电容 C501 额定耐压为 50V，工作在 12V 总线上。",
+                        conclusion="无法判定",
+                        quote=quote,
+                        observed={"value": 50, "unit": "V"},
+                        compare_op=">=",
+                        limit_unit="%",
+                        param_name="rated_voltage",
+                        calc_op="percent_divide",
+                        calc_inputs=[
+                            {"name": "left", "value": 12, "unit": "V", "origin": "drawing"},
+                            {"name": "right", "value": 70, "unit": "%", "origin": "drawing"},
+                        ],
+                    )
+                ]
+            }
+        ]
+    )
+    result = review_schematic(
+        _pdf(tmp_path),
+        "",
+        "",
+        rules_text=quote,
+        transport=transport,
+        cache=MemoryCache(),
+        config=CFG,
+    )
+    item = result.items[0]
+    assert item.conclusion == "无法判定"
+    assert item.admission == "needs_evidence"
+    assert item.calculation.validation_status == "not_verified"
+
+
 def test_untraced_derating_stays_visible_and_unverified(tmp_path):
     quote = "陶瓷电容应计入直流偏置引起的容值衰减。其工作电压不得超过额定耐压的 70%，宜按不超过 50% 使用。"
     transport = _transport(

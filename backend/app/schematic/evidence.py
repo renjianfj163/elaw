@@ -43,6 +43,7 @@ class CalcInput(BaseModel):
     name: str
     value: float
     unit: str = ""
+    origin: Literal["quote", "drawing"] = "quote"
 
 
 class DerivedCalculation(BaseModel):
@@ -153,11 +154,17 @@ def verify_derived(
     if result is None:
         base.assumptions = unverified_calculation(proposed_limit, limit_unit, "计算公式缺少可用的输入。").assumptions
         return base, None, base.assumptions
+    result_unit = observed_unit if op == "percent_divide" and _is_percent(limit_unit) else (limit_unit or observed_unit)
+    base.calculated_unit = result_unit
     param = param_name.strip() or "reading"
-    tree = _tree(compare_op, param, result, limit_unit, limit_high)
+    tree = _tree(compare_op, param, result, result_unit, limit_high)
     judged = evaluate(tree, {param: {"value": observed_value, "unit": observed_unit}})
     note = "限值由程序按原文中的输入重算。"
-    if proposed_limit is not None and abs(proposed_limit - result) > max(1e-6, abs(result) * 1e-4):
+    if (
+        proposed_limit is not None
+        and not _is_percent(limit_unit)
+        and abs(proposed_limit - result) > max(1e-6, abs(result) * 1e-4)
+    ):
         note = f"{note} 模型给出的 {proposed_limit} 与重算结果不一致，未采用。"
     base.formula = _formula(op, values, result)
     base.calculated_value = result
@@ -166,12 +173,14 @@ def verify_derived(
     return base, judged, ""
 
 
+def _is_percent(unit: str) -> bool:
+    return unit.strip() in {"%", "％"}
+
+
 def _input_in_quote(item: CalcInput, quote: str) -> bool:
-    if _number_in_clause(item.value, quote):
+    if item.origin == "drawing" and not _is_percent(item.unit):
         return True
-    if item.unit == "%" and _number_in_clause(item.value, quote):
-        return True
-    return False
+    return _number_in_clause(item.value, quote)
 
 
 def _apply(op: str, values: dict[str, float]) -> float | None:
